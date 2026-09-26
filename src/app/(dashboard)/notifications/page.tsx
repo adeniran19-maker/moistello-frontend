@@ -426,7 +426,7 @@ export default function NotificationsPage() {
           {grouped.map((group) => (
             <div key={group.key} className="space-y-3">
               {groupBy !== "none" && (
-                <h3 className="font-heading text-xs font-semibold tracking-wider text-muted-foreground uppercase px-1">
+                <h3 className="font-heading text-xs font-semibold tracking-wider text-muted-foreground uppercase px-1 sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                   {group.label} ({group.items.length})
                 </h3>
               )}
