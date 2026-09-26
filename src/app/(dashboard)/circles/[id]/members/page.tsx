@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { ArrowLeft, Users, Inbox, Hash, Search, SlidersHorizontal, X } from "lucide-react"
-import { useCircleMembers } from "@/hooks/use-circles"
+import { useCircleMembers, useCircle } from "@/hooks/use-circles"
 import { useAuth } from "@/hooks/use-auth"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -48,7 +48,9 @@ export default function CircleMembersPage() {
   const circleId = params.id as string
 
   const { user } = useAuth()
+  const { data: circle } = useCircle(circleId)
   const { data: members = [], isLoading, isError } = useCircleMembers(circleId)
+  const organizerId = circle?.organizerId
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("")
   const [position, setPosition] = useState("")
@@ -253,9 +255,9 @@ export default function CircleMembersPage() {
                         <p className="font-heading font-semibold text-foreground dark:text-white truncate text-sm">
                           {displayName}
                         </p>
-                        {isCurrentUser && (
-                          <span className="text-[10px] font-medium gradient-text bg-white/5 dark:bg-white/10 rounded-full px-2 py-0.5">
-                            You
+                        {organizerId === member.userId && (
+                          <span className="text-[10px] font-medium bg-aurora-violet/20 text-aurora-violet rounded-full px-2 py-0.5">
+                            Organizer
                           </span>
                         )}
                       </div>
