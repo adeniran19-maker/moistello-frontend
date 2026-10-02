@@ -2,24 +2,24 @@
 
 import Link from "next/link"
 import { ArrowLeft, Sun, Moon, Monitor, Check } from "lucide-react"
+import { useTheme } from "@/hooks/use-theme"
 import { useUIStore } from "@/stores/ui-store"
 import { useTranslate } from "@/lib/locale/context"
 import { cn } from "@/lib/cn"
 
 type ThemeOption = "light" | "dark" | "system"
 
-function getThemeOptions(t: (key: string) => string) {
+function getThemeOptions(t: (key: string, fallback?: string) => string) {
   return [
-    { value: "light" as ThemeOption, icon: <Sun className="h-5 w-5" />, label: t("theme.light"), desc: t("theme.lightDesc") },
-    { value: "dark" as ThemeOption, icon: <Moon className="h-5 w-5" />, label: t("theme.dark"), desc: t("theme.darkDesc") },
-    { value: "system" as ThemeOption, icon: <Monitor className="h-5 w-5" />, label: t("theme.system"), desc: t("theme.systemDesc") },
+    { value: "light" as ThemeOption, icon: <Sun className="h-5 w-5" />, label: t("theme.light", "Light"), desc: t("theme.lightDesc", "Light mode") },
+    { value: "dark" as ThemeOption, icon: <Moon className="h-5 w-5" />, label: t("theme.dark", "Dark"), desc: t("theme.darkDesc", "Dark mode") },
+    { value: "system" as ThemeOption, icon: <Monitor className="h-5 w-5" />, label: t("theme.system", "System"), desc: t("theme.systemDesc", "Follow your device setting") },
   ]
 }
 
 export default function ThemeSettingsPage() {
   const { t } = useTranslate()
-  const theme = useUIStore((s) => s.theme);
-  const setTheme = useUIStore((s) => s.setTheme);
+  const { theme, setTheme, systemTheme } = useTheme();
   const density = useUIStore((s) => s.density);
   const setDensity = useUIStore((s) => s.setDensity);
   const fontSize = useUIStore((s) => s.fontSize);
@@ -28,7 +28,7 @@ export default function ThemeSettingsPage() {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/settings" className="text-muted-foreground hover:text-foreground transition-colors">
+        <Link href="/settings" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Back to settings">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
@@ -43,7 +43,9 @@ export default function ThemeSettingsPage() {
         <div className="grid grid-cols-3 gap-3">
           {getThemeOptions(t).map((opt) => (
             <button
+              type="button"
               key={opt.value}
+              aria-pressed={theme === opt.value}
               onClick={() => setTheme(opt.value)}
               className={cn(
                 "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
@@ -63,6 +65,11 @@ export default function ThemeSettingsPage() {
               <div className="text-center">
                 <p className="text-sm font-medium text-foreground">{opt.label}</p>
                 <p className="text-2xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                {opt.value === "system" && (
+                  <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] bg-white/[0.08] text-muted-foreground font-mono">
+                    {t("theme.detected", "Detected")}: {systemTheme === "dark" ? t("theme.dark", "Dark") : t("theme.light", "Light")}
+                  </span>
+                )}
               </div>
               {theme === opt.value && (
                 <span className="absolute top-2 right-2">
@@ -109,7 +116,10 @@ export default function ThemeSettingsPage() {
         <div className="flex gap-2">
           {(["small", "medium", "large"] as const).map((size) => (
             <button
+              type="button"
               key={size}
+              aria-label={`Set font size to ${size}`}
+              aria-pressed={fontSize === size}
               onClick={() => setFontSize(size)}
               className={cn(
                 "flex-1 py-3 rounded-xl text-sm font-medium border-2 transition-all",

@@ -1,10 +1,12 @@
 "use client";
 
+import { logger } from "@/lib/logger"
 import { useState, useEffect, useCallback } from "react";
-import { Clock, Users, Link2, AlertCircle, RefreshCw } from "lucide-react";
+import { Clock, Users, Link2, CircleAlert, RefreshCw } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/shared/copy-button";
@@ -54,7 +56,7 @@ export function CircleInviteModal({
       );
       setExistingInvites(response.data ?? []);
     } catch (e) {
-      console.error("[circle-invite] Failed to load invites:", e)
+      logger.error("[circle-invite] Failed to load invites:", e)
       setFetchError("Failed to load existing invites. Please try again.");
       setExistingInvites([]);
     } finally {
@@ -88,7 +90,7 @@ export function CircleInviteModal({
         setExistingInvites((prev) => [newInvite, ...prev]);
       }
     } catch (e) {
-      console.error("[circle-invite] Failed to generate invite:", e)
+      logger.error("[circle-invite] Failed to generate invite:", e)
     } finally {
       setIsGenerating(false);
     }
@@ -115,29 +117,33 @@ export function CircleInviteModal({
       <div className="space-y-6">
         {inviteCode && (
           <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <label className="block text-sm font-medium text-gray-900">
+            <label htmlFor="invite-code" className="block text-sm font-medium text-gray-900">
               Invite Code
             </label>
             <div className="flex items-center gap-2">
               <Input
-                value={inviteCode}
+                id="invite-code"
+                aria-label="Invite code"
+                 value={inviteCode}
                 readOnly
                 className="font-mono text-sm"
-                rightIcon={<CopyButton text={inviteCode} />}
+                endAction={<CopyButton text={inviteCode} label="Copy code" />}
               />
             </div>
 
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-900">
+              <label htmlFor="invite-share-link" className="block text-sm font-medium text-gray-900">
                 Share Link
               </label>
               <div className="flex items-center gap-2">
                 <Input
-                  value={inviteUrl}
+                  id="invite-share-link"
+                  aria-label="Invite share link"
+                   value={inviteUrl}
                   readOnly
                   className="text-sm text-gray-600"
                   leftIcon={<Link2 className="h-4 w-4" />}
-                  rightIcon={<CopyButton text={inviteUrl} label="Copy Link" />}
+                  endAction={<CopyButton text={inviteUrl} label="Copy Link" />}
                 />
               </div>
             </div>
@@ -191,7 +197,7 @@ export function CircleInviteModal({
           ) : fetchError ? (
             <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700">
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+                <CircleAlert className="h-4 w-4 shrink-0 text-red-500" />
                 <span>{fetchError}</span>
               </div>
               <Button variant="ghost" size="sm" onClick={fetchInvites} className="text-xs text-red-700 hover:text-red-900">

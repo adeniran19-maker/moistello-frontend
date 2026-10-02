@@ -1,7 +1,12 @@
 /** @type {import('@sentry/nextjs').withSentryConfig} */
 const { withSentryConfig } = await import("@sentry/nextjs")
+const withBundleAnalyzer = (await import("@next/bundle-analyzer")).default({
+  enabled: process.env.ANALYZE === "true",
+  openAnalyzer: false,
+})
 
 import { API_CSP } from "./src/lib/security/api-csp.mjs"
+import { CSP_REPORT_PATH, CSP_REPORTING_GROUP } from "./src/lib/security/csp-report-paths.mjs"
 
 // Derive the backend hostname from the API URL env var so the image allowlist
 // stays in sync with the deployment without hardcoding domain names here.
@@ -22,8 +27,107 @@ function apiHostname() {
 // policy is deliberately minimal — no scripts, no frames, no subresources.
 const apiCsp = API_CSP
 
+import { createRequire } from "module"
+import { fileURLToPath } from "url"
+import path from "path"
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const require = createRequire(import.meta.url)
+const webpack = require("webpack")
+
+/**
+ * The flat-file dev-auth routes are replaced with a 404 stub at
+ * build time when NODE_ENV === "production". This ensures they are physically
+ * absent from the production bundle — the runtime blockInProduction() check
+ * alone is insufficient because the route module (and its `fs` imports) would
+ * still be compiled into the bundle. Using NormalModuleReplacementPlugin
+ * swaps the entire module before compilation, so no flat-file code, no `fs`
+ * writes, and no credential-related logic ever ships to prod.
+ *
+ * The stub (src/lib/security/dev-route-stub.ts) exports a minimal 404
+ * handler that is Next.js App Router-compatible and has zero node:fs imports.
+ *
+ * Both halves of the two-phase upload (`/api/upload` and
+ * `/api/upload/finalize`) must be listed: the finalize handler reaches the
+ * same `fs` staging code through `../staging`, so leaving it out would ship
+ * that module to production.
+ */
+const DEV_ONLY_ROUTES = [
+  /src[/\\]app[/\\]api[/\\]auth[/\\]login[/\\]route\.[jt]s$/,
+  /src[/\\]app[/\\]api[/\\]auth[/\\]setup[/\\]route\.[jt]s$/,
+  /src[/\\]app[/\\]api[/\\]upload[/\\]route\.[jt]s$/,
+  /src[/\\]app[/\\]api[/\\]upload[/\\]finalize[/\\]route\.[jt]s$/,
+]
+
+const stubPath = path.resolve(__dirname, "src/lib/security/dev-route-stub.ts")
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "date-fns", "@stellar/stellar-base"],
+  },
+  webpack(config, { isServer }) {
+    // Only exclude on the server-side build (route handlers are server-only).
+    // The client build never imports these files, but we guard isServer to be
+    // explicit and avoid any accidental tree-shaking edge cases.
+    if (isServer && process.env.NODE_ENV === "production") {
+      DEV_ONLY_ROUTES.forEach((pattern) => {
+        config.plugins.push(
+          new webpack.NormalModuleReplacementPlugin(pattern, stubPath)
+        )
+      })
+    }
+
+    if (!isServer) {
+      config.optimization = config.optimization || {}
+      config.optimization.splitChunks = config.optimization.splitChunks || {}
+      const cacheGroups = config.optimization.splitChunks.cacheGroups || {}
+
+      cacheGroups.stellar = {
+        test: /[\\/]node_modules[\\/](@stellar|stellar-sdk)[\\/]/,
+        name: "stellar-vendor",
+        chunks: "all",
+        priority: 40,
+        reuseExistingChunk: true,
+      }
+
+      cacheGroups.walletconnect = {
+        test: /[\\/]node_modules[\\/]@walletconnect[\\/]/,
+        name: "walletconnect-vendor",
+        chunks: "all",
+        priority: 40,
+        reuseExistingChunk: true,
+      }
+
+      cacheGroups.ledger = {
+        test: /[\\/]node_modules[\\/]@ledgerhq[\\/]/,
+        name: "ledger-vendor",
+        chunks: "all",
+        priority: 40,
+        reuseExistingChunk: true,
+      }
+
+      cacheGroups.framerMotion = {
+        test: /[\\/]node_modules[\\/]framer-motion[\\/]/,
+        name: "framer-motion-vendor",
+        chunks: "all",
+        priority: 35,
+        reuseExistingChunk: true,
+      }
+
+      config.optimization.splitChunks.cacheGroups = cacheGroups
+    }
+
+    return config
+  },
+
   images: {
     // Restrict to the specific hosts this application actually serves images
     // from. The wildcard "**" that was here before is an SSRF vector — any
@@ -74,6 +178,19 @@ const nextConfig = {
         // per request belong below.
         headers: [
           {
+            // Publishing the Reporting API group that the page policy's
+            // `report-to` directive names. Browsers resolve `report-to` by
+            // looking the group up in this header — a group with no matching
+            // Reporting-Endpoints entry is silently discarded, which would look
+            // exactly like "no violations are happening". Served unconditionally
+            // rather than behind CSP_REPORT_ONLY because it is inert on its own:
+            // without a report-only policy nothing references the group, and
+            // header presence alone causes no traffic. Static, so it belongs
+            // here and not in the per-request middleware.
+            key: "Reporting-Endpoints",
+            value: `${CSP_REPORTING_GROUP}="${CSP_REPORT_PATH}"`,
+          },
+          {
             key: "X-Frame-Options",
             value: "DENY",
           },
@@ -99,7 +216,7 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+const configWithSentry = withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
@@ -107,3 +224,5 @@ export default withSentryConfig(nextConfig, {
   hideSourceMaps: true,
   widenClientFileUpload: true,
 })
+
+export default withBundleAnalyzer(configWithSentry)

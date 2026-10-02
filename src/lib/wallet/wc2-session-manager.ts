@@ -1,9 +1,11 @@
+import { logger } from "@/lib/logger"
 import type { NetworkType } from "./types"
 import { getRelayMonitor } from "./wc2-relay"
 import { getWC2SessionStore } from "./wc2-session-store"
 import { getSignClientClass } from "./wc2-sign-client"
 import { WC2_QR_EXPIRATION_MS } from "@/lib/constants"
 import { computeSessionExpiry } from "./session-lifecycle"
+import { validateStellarAddress } from "@/lib/stellar/validate-address"
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ""
 const RELAY_URL = "wss://relay.walletconnect.com"
@@ -63,7 +65,7 @@ class WCSessionOrchestrator {
   }
 
   private isValidStellarPublicKey(key: string): boolean {
-    return /^G[A-Z0-9]{55}$/.test(key)
+    return validateStellarAddress(key)
   }
 
   private chainIdForNetwork(network: NetworkType): string {
@@ -101,7 +103,7 @@ class WCSessionOrchestrator {
       this.signClient = sc
       return true
     } catch (e) {
-      console.warn("[wc-session] Failed to restore session:", e)
+      logger.warn("[wc-session] Failed to restore session:", e)
       return false
     }
   }
@@ -295,7 +297,7 @@ const prop = proposal as {
       try {
         await sc.disconnect({ topic: this.connectionState.sessionTopic })
       } catch (e) {
-        console.warn("[wc-session] Failed to disconnect:", e)
+        logger.warn("[wc-session] Failed to disconnect:", e)
       }
     }
     this.reset()

@@ -1,8 +1,9 @@
 "use client"
 
+import { logger } from "@/lib/logger"
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from "react"
 import { cn } from "@/lib/cn"
-import { Loader2, Check, X, ShieldAlert } from "lucide-react"
+import { LoaderCircle, Check, X, ShieldAlert } from "lucide-react"
 
 const MAX_RETRIES = 3
 
@@ -101,7 +102,7 @@ export const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaHandle, HCaptchaCaptcha
           if (!mounted || !window.hcaptcha || !invisibleContainerRef.current) return
 
           if (widgetIdRef.current) {
-            try { window.hcaptcha.remove(widgetIdRef.current) } catch (e) { console.warn("[hcaptcha] Failed to remove widget:", e) }
+            try { window.hcaptcha.remove(widgetIdRef.current) } catch (e) { logger.warn("[hcaptcha] Failed to remove widget:", e) }
             widgetIdRef.current = null
           }
 
@@ -150,7 +151,7 @@ export const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaHandle, HCaptchaCaptcha
           try {
             window.hcaptcha.remove(widgetIdRef.current)
           } catch (e) {
-            console.warn("[hcaptcha] Cleanup failed:", e)
+            logger.warn("[hcaptcha] Cleanup failed:", e)
           }
           widgetIdRef.current = null
         }
@@ -174,7 +175,7 @@ export const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaHandle, HCaptchaCaptcha
         try {
           window.hcaptcha.remove(widgetIdRef.current)
         } catch (e) {
-          console.warn("[hcaptcha] Failed to remove widget on retry:", e)
+          logger.warn("[hcaptcha] Failed to remove widget on retry:", e)
         }
         widgetIdRef.current = null
       }
@@ -200,14 +201,14 @@ export const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaHandle, HCaptchaCaptcha
         <div className="flex items-center gap-3">
           {state === "unloaded" && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <LoaderCircle className="h-4 w-4 animate-spin" />
               Loading verification...
             </div>
           )}
 
           {state === "loading" && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
               Loading verification...
             </div>
           )}
@@ -226,7 +227,7 @@ export const HCaptchaCaptcha = forwardRef<HCaptchaCaptchaHandle, HCaptchaCaptcha
 
           {state === "verifying" && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
-              <Loader2 className="h-4 w-4 animate-spin text-aurora-violet" aria-hidden="true" />
+              <LoaderCircle className="h-4 w-4 animate-spin text-aurora-violet" aria-hidden="true" />
               Verifying...
             </div>
           )}

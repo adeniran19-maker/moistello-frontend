@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight, House } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface Breadcrumb {
@@ -34,12 +34,13 @@ export function PageHeader({
       <div className="min-w-0">
         {/* Breadcrumbs */}
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav className="flex items-center gap-1.5 mb-3">
+          <nav className="flex items-center gap-1.5 mb-3" aria-label="Breadcrumb">
             <Link
               href="/"
+             aria-label="House"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors duration-300"
             >
-              <Home className="h-3 w-3" />
+              <House className="h-3 w-3" aria-hidden="true" />
             </Link>
             {breadcrumbs.map((crumb, index) => {
               const isLast = index === breadcrumbs.length - 1;
@@ -55,6 +56,7 @@ export function PageHeader({
                     </Link>
                   ) : (
                     <span
+                      aria-current={isLast ? "page" : undefined}
                       className={cn(
                         "text-xs truncate max-w-[180px]",
                         isLast

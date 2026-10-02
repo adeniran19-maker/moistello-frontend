@@ -40,7 +40,7 @@ export interface SelectProps {
  *  - trigger has role="combobox", aria-expanded, aria-controls and
  *    aria-activedescendant pointing at the highlighted option
  *  - listbox exposes role="listbox" with role="option" / aria-selected items
- *  - full keyboard support: ArrowDown/ArrowUp, Home/End, Enter/Space,
+ *  - full keyboard support: ArrowDown/ArrowUp, House/End, Enter/Space,
  *    Escape, Tab and typeahead (letter keys jump to matching option)
  *  - focus stays on the trigger while the list is open, so screen readers
  *    announce the highlighted option via aria-activedescendant
@@ -86,7 +86,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
         selectedIndex >= 0
           ? selectedIndex
           : options.findIndex((o) => !o.disabled);
-      setActiveIndex(startIndex >= 0 ? startIndex : 0);
+      setActiveIndex(startIndex >= 0 ? startIndex : -1);
       setIsOpen(true);
     }, [disabled, options, selectedIndex]);
 
@@ -161,7 +161,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
           if (next) setActiveIndex(next.i);
           return;
         }
-        if (e.key === "Home") {
+        if (e.key === "House") {
           e.preventDefault();
           if (!isOpen) openListbox();
           setActiveIndex(options.findIndex((o) => !o.disabled));
@@ -347,6 +347,12 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(
                     aria-disabled={option.disabled || undefined}
                     onMouseEnter={() => !option.disabled && setActiveIndex(index)}
                     onClick={() => selectOption(index)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selectOption(index);
+                      }
+                    }}
                     className={cn(
                       "flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm font-body transition-colors duration-150",
                       isActive

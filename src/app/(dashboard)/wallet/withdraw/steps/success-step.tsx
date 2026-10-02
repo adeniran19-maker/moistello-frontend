@@ -1,8 +1,7 @@
 "use client"
 
-import Link from "next/link"
-import { CheckCircle, ExternalLink } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { CircleCheck, ExternalLink } from "lucide-react"
+import { ButtonLink } from "@/components/ui/button"
 import { NIGERIAN_BANKS } from "../banks"
 import type { WithdrawQuote } from "../types"
 
@@ -23,7 +22,7 @@ export function SuccessStep({ quote, amountUsdc, asset, accountNumber, selectedB
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 space-y-4">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 mx-auto">
-            <CheckCircle className="h-8 w-8 text-emerald-400" />
+            <CircleCheck className="h-8 w-8 text-emerald-400" />
           </div>
           <div>
             <p className="font-heading text-2xl font-bold gradient-text-extended">Withdrawal Complete</p>
@@ -53,14 +52,10 @@ export function SuccessStep({ quote, amountUsdc, asset, accountNumber, selectedB
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <Link href="/wallet" className="flex-1">
-          <Button variant="primary" size="lg" className="w-full">Back to Wallet</Button>
-        </Link>
-        <Link href="/wallet/transactions" className="flex-1">
-          <Button variant="outline" size="lg" className="w-full" leftIcon={<ExternalLink className="h-4 w-4" />}>
-            View History
-          </Button>
-        </Link>
+        <ButtonLink href="/wallet" variant="primary" size="lg" className="flex-1 w-full">Back to Wallet</ButtonLink>
+        <ButtonLink href="/wallet/transactions" variant="outline" size="lg" className="flex-1 w-full" leftIcon={<ExternalLink className="h-4 w-4" />}>
+          View History
+        </ButtonLink>
       </div>
     </div>
   )

@@ -136,7 +136,7 @@ const BENEFIT_ICONS: Record<string, React.ElementType> = {
 }
 
 export interface TierCardProps {
-  score: number
+  score: number | undefined | null
   streak: number
   completions: number
   totalContributed: number
@@ -157,6 +157,16 @@ function getBenefitIcon(benefit: string): React.ElementType {
 }
 
 export function TierCard({ score }: TierCardProps) {
+  // Guard: while score is still being hydrated (undefined / 0 from stale cache)
+  // avoid rendering a misleading 0 % progress bar.
+  if (score === undefined || score === null) {
+    return (
+      <div className="animate-pulse border border-white/10 rounded-xl overflow-hidden">
+        <div className="h-40 bg-white/[0.04]" aria-label="Loading tier progress" />
+      </div>
+    )
+  }
+
   const tierIndex = getTierIndex(score)
   const currentTier = TIER_ORDER[tierIndex]
   const nextTier = tierIndex < 4 ? TIER_ORDER[tierIndex + 1] : null
@@ -239,7 +249,7 @@ export function TierCard({ score }: TierCardProps) {
           </span>
           <span className="text-xs font-mono text-muted-foreground">{Math.round(progress)}%</span>
         </div>
-        <Progress value={progress} variant="premium" size="lg" />
+        <Progress aria-label="Reputation tier progress" value={progress} variant="premium" size="lg" />
         <div className="flex items-center justify-between mt-1.5">
           <span className="text-2xs text-muted-foreground/60">{formatNumber(threshold.min)}</span>
           <span className="text-2xs text-muted-foreground/60">{formatNumber(threshold.max)}</span>

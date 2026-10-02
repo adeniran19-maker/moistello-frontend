@@ -1,8 +1,9 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { TrendingUp, BarChart3 } from 'lucide-react'
+import { TrendingUp, ChartColumn } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
+import { useResizeObserver } from '@/hooks/use-resize-observer'
 import type { Contribution } from '@/types'
 
 interface ContributionHistoryChartProps {
@@ -19,7 +20,9 @@ export function ContributionHistoryChart({
   period = 'month',
 }: ContributionHistoryChartProps) {
   const [isClient, setIsClient] = useState(false)
+  const { ref: containerRef, width: containerWidth } = useResizeObserver<HTMLDivElement>({ debounceMs: 100 })
   useEffect(() => { setIsClient(true) }, [])
+
 
   const chartData = useMemo(() => {
     const map = new Map<string, { amount: number; count: number }>()
@@ -75,7 +78,7 @@ export function ContributionHistoryChart({
           <h3 className="font-heading text-sm font-semibold text-foreground">Contribution History</h3>
         </div>
         <div className="py-10 text-center space-y-2">
-          <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto" />
+          <ChartColumn className="h-8 w-8 text-muted-foreground mx-auto" />
           <p className="text-xs text-muted-foreground font-body">No contributions yet</p>
           <p className="text-2xs text-muted-foreground">Your history will appear after your first contribution</p>
         </div>
@@ -83,24 +86,33 @@ export function ContributionHistoryChart({
     )
   }
 
-  // Simple bar chart using SVG
+  // Responsive chart dimensions
   const height = 200
-  const width = 600
-  const padding = { top: 12, right: 12, bottom: 24, left: 12 }
-  const chartWidth = width - padding.left - padding.right
+  const padding = { top: 12, right: 12, bottom: 28, left: 12 }
   const chartHeight = height - padding.top - padding.bottom
-  const barWidth = (chartWidth / chartData.length) * 0.7
+
+  // Calculate dimensions based on container width
+  const effectiveWidth = containerWidth > 0 ? containerWidth : 600
+  const chartWidth = effectiveWidth - padding.left - padding.right
+  const barWidth = Math.max(4, (chartWidth / chartData.length) * 0.7)
   const gap = chartWidth / chartData.length
 
+  // Determine label frequency for readability
+  const labelStep = chartData.length <= 14 ? 1 : chartData.length <= 30 ? 2 : 7
+
   return (
-    <div className="glass rounded-2xl p-5 holo-border">
+    <div 
+      ref={containerRef}
+      className="glass rounded-2xl p-5 holo-border min-w-0"
+    >
+
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="h-4 w-4 text-aurora-violet" />
         <h3 className="font-heading text-sm font-semibold text-foreground">Contribution History</h3>
       </div>
 
-      <div className="depth-4 rounded-xl bg-white/[0.02] p-3">
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto" style={{ minHeight: `${height}px` }}>
+      <div className="depth-4 rounded-xl bg-white/[0.02] p-3 overflow-x-auto">
+        <svg viewBox={`0 0 ${effectiveWidth} ${height}`} className="w-full h-auto" style={{ minWidth: '100%', minHeight: `${height}px` }}>
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
             const y = padding.top + (1 - pct) * chartHeight
@@ -109,7 +121,7 @@ export function ContributionHistoryChart({
                 key={`grid-${pct}`}
                 x1={padding.left}
                 y1={y}
-                x2={width - padding.right}
+                x2={effectiveWidth - padding.right}
                 y2={y}
                 stroke="rgb(var(--muted-foreground) / 0.1)"
                 strokeWidth="1"
@@ -120,7 +132,7 @@ export function ContributionHistoryChart({
           {/* Bars */}
           {chartData.map((item, idx) => {
             const x = padding.left + idx * gap + (gap - barWidth) / 2
-            const barHeight = (item.amount / stats.max) * chartHeight
+            const barHeight = stats.max > 0 ? (item.amount / stats.max) * chartHeight : 0
             const y = padding.top + chartHeight - barHeight
             return (
               <g key={`bar-${idx}`}>
@@ -144,17 +156,17 @@ export function ContributionHistoryChart({
             </linearGradient>
           </defs>
 
-          {/* X-axis labels (every 7 days) */}
+          {/* X-axis labels */}
           {chartData.map((item, idx) => {
-            if (idx % 7 === 0 || idx === chartData.length - 1) {
+            if (idx % labelStep === 0 || idx === chartData.length - 1) {
               const x = padding.left + idx * gap + gap / 2
               return (
                 <text
                   key={`label-${idx}`}
                   x={x}
-                  y={height - 4}
+                  y={height - 6}
                   textAnchor="middle"
-                  fontSize="11"
+                  fontSize="10"
                   fill="rgb(var(--muted-foreground) / 0.7)"
                 >
                   {item.label}

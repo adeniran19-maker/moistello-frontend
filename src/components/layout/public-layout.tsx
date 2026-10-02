@@ -6,20 +6,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu,
   X,
-  Sun,
-  Moon,
-  ShieldQuestion,
+  ShieldQuestionMark,
   Scale,
   Lock,
   Code,
   BookOpen,
-  HelpCircle,
+  CircleQuestionMark,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/cn";
-import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslate } from "@/lib/locale/context";
-import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import dynamic from "next/dynamic";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
+
+const DashboardLayout = dynamic(
+  () => import("@/components/layout/dashboard-layout").then((m) => m.DashboardLayout),
+  { ssr: false }
+);
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -28,13 +32,11 @@ interface PublicLayoutProps {
 export function PublicLayout({ children }: PublicLayoutProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [menuOpen, setMenuOpen] = useState(false);
-  const theme = useUIStore((s) => s.theme);
-  const toggleTheme = useUIStore((s) => s.toggleTheme);
   const { t } = useTranslate();
-  const isDark = theme === "dark";
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const toggleMenu = useCallback(() => setMenuOpen((prev) => !prev), []);
+  const mobileMenuRef = useFocusTrap<HTMLDivElement>(menuOpen, closeMenu);
 
   // Authenticated users see public pages inside the dashboard layout
   if (isAuthenticated) {
@@ -50,9 +52,18 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
   return (
     <div className="min-h-screen bg-[rgb(var(--background))]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-card focus:px-4 focus:py-2 focus:text-foreground"
+      >
+        Skip to main content
+      </a>
       {/* ════════════════ FLOATING HEADER ════════════════ */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 px-3 pt-3"
+        // `pt-header-safe` replaces `pt-3`: the bar stays glued to top-0 while
+        // its content clears the black-translucent status bar. `px-edge-safe`
+        // layers the landscape rounded-corner insets over the existing px-3.
+        className="fixed top-0 left-0 right-0 z-50 px-3 px-edge-safe pt-header-safe"
       >
         <div
           className={cn(
@@ -71,7 +82,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
           </Link>
 
           {/* Center: Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Primary navigation">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -85,24 +96,10 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
           {/* Right: Theme Toggle + Hamburger */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={toggleTheme}
-              className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-full shrink-0",
-                "glass-whisper text-muted-foreground",
-                "transition-all duration-300 hover:text-foreground",
-                "hover:shadow-[0_0_18px_rgb(var(--aurora-violet)/0.2)]",
-              )}
-              aria-label="Toggle theme"
-            >
-              {isDark ? (
-                <Sun className="h-4 w-4 text-amber-400" />
-              ) : (
-                <Moon className="h-4 w-4 text-indigo-400" />
-              )}
-            </button>
+            <ThemeToggle />
 
             <button
+              type="button"
               onClick={toggleMenu}
               className={cn(
                 "inline-flex h-9 w-9 items-center justify-center rounded-xl shrink-0 md:hidden",
@@ -110,6 +107,8 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 "hover:text-foreground hover:glass-whisper",
               )}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-public-navigation"
             >
               {menuOpen ? (
                 <X className="h-5 w-5" />
@@ -132,13 +131,20 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               transition={{ duration: 0.3 }}
               className="fixed inset-0 z-50 bg-black/50 backdrop-blur-lg"
               onClick={closeMenu}
+              aria-hidden="true"
             />
             <motion.div
+              id="mobile-public-navigation"
+              ref={mobileMenuRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation"
+              tabIndex={-1}
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed top-0 right-0 bottom-0 z-50 w-[85vw] max-w-[340px] will-change-transform"
+              className="fixed top-0 right-0 bottom-0 z-50 w-[85vw] max-w-[340px] pr-edge-safe will-change-transform"
             >
               <div
                 className={cn(
@@ -154,6 +160,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                     Moistello
                   </span>
                   <button
+                    type="button"
                     onClick={closeMenu}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:glass-whisper transition-all duration-300"
                     aria-label="Close menu"
@@ -161,15 +168,15 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+                <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto" aria-label="Mobile navigation">
                   <p className="px-3 pt-2 pb-2 font-heading text-[10px] tracking-[0.25em] uppercase text-muted-foreground/60">
                     Navigate
                   </p>
                   {[
-                    { label: t("nav.howItWorks"), href: "/how-it-works", icon: <ShieldQuestion className="h-[18px] w-[18px]" /> },
+                    { label: t("nav.howItWorks"), href: "/how-it-works", icon: <ShieldQuestionMark className="h-[18px] w-[18px]" /> },
                     { label: t("nav.developers"), href: "/developers", icon: <Code className="h-[18px] w-[18px]" /> },
                     { label: t("nav.docs"), href: "/docs", icon: <BookOpen className="h-[18px] w-[18px]" /> },
-                    { label: t("nav.support"), href: "/support", icon: <HelpCircle className="h-[18px] w-[18px]" /> },
+                    { label: t("nav.support"), href: "/support", icon: <CircleQuestionMark className="h-[18px] w-[18px]" /> },
                   ].map((item) => (
                     <Link
                       key={item.href}
@@ -200,28 +207,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                   ))}
                 </nav>
                 <div className="shrink-0 border-t border-white/[0.06] px-4 py-4">
-                  <button
-                    onClick={toggleTheme}
-                    className={cn(
-                      "flex items-center gap-3 w-full rounded-xl px-4 py-2.5",
-                      "text-sm font-body transition-all duration-300",
-                      "glass-whisper hover:glass-strong",
-                      "hover:shadow-[0_0_20px_rgb(var(--aurora-violet)/0.15)]",
-                    )}
-                  >
-                    <span className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full glass-strong",
-                    )}>
-                      {isDark ? (
-                        <Sun className="h-4 w-4 text-amber-400" />
-                      ) : (
-                        <Moon className="h-4 w-4 text-indigo-400" />
-                      )}
-                    </span>
-                    <span className="flex-1 text-left text-foreground">
-                      {isDark ? "Light Mode" : "Dark Mode"}
-                    </span>
-                  </button>
+                  <ThemeToggle showLabel className="w-full justify-start px-4 py-2.5 rounded-xl glass-whisper hover:glass-strong" />
                 </div>
                 <div className="shrink-0 border-t border-white/[0.04] px-5 py-3">
                   <p className="text-[10px] text-muted-foreground/40">
@@ -235,13 +221,13 @@ export function PublicLayout({ children }: PublicLayoutProps) {
       </AnimatePresence>
 
       {/* ════════════════ PAGE CONTENT ════════════════ */}
-      <div className="pt-20">{children}</div>
+      <main id="main-content" tabIndex={-1} className="pt-20">{children}</main>
 
       {/* ════════════════ FOOTER ════════════════ */}
       <footer className="glass mt-20 py-8 border-t border-border">
         <div className="container-premium flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-muted-foreground">
           <span>&copy; {new Date().getFullYear()} Moistello</span>
-          <nav className="flex flex-wrap justify-center gap-6">
+          <nav className="flex flex-wrap justify-center gap-6" aria-label="Footer navigation">
             <Link href="/about" className="hover:text-foreground transition-colors">{t("nav.about")}</Link>
             <Link href="/how-it-works" className="hover:text-foreground transition-colors">{t("nav.howItWorks")}</Link>
             <Link href="/developers" className="hover:text-foreground transition-colors">{t("nav.developers")}</Link>

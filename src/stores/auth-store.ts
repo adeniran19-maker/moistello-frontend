@@ -1,9 +1,11 @@
 "use client";
 
+import { logger } from "@/lib/logger"
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { ApiResponse, User } from "@/types";
-import { post } from "@/lib/api-client";
+import { post, clearApiClientState } from "@/lib/api-client";
+import { getCsrfHeaders } from "@/lib/auth/csrf";
 import {
   clearAccessToken,
   getAccessToken,
@@ -40,16 +42,22 @@ interface UserStoreWithHmac {
 async function persistSession(
   token: string,
   refreshToken: string,
-): Promise<void> {
-  if (typeof window === "undefined") return;
+): Promise<boolean> {
+  if (typeof window === "undefined") return false;
   try {
-    await fetch("/api/auth/session", {
+    const response = await fetch("/api/auth/session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getCsrfHeaders() },
       body: JSON.stringify({ token, refreshToken }),
     });
+    if (!response.ok) {
+      logger.warn("[auth] Session cookie endpoint rejected the token pair", { status: response.status });
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn("[auth] Failed to persist session cookie:", e);
+    logger.warn("[auth] Failed to persist session cookie:", e);
+    return false;
   }
 }
 
@@ -73,7 +81,7 @@ async function rehydrateAccessToken(): Promise<string | null> {
     setAccessToken(data.token);
     return data.token;
   } catch (e) {
-    console.warn("[auth] Failed to restore session:", e);
+    logger.warn("[auth] Failed to restore session:", e);
     return null;
   }
 }
@@ -82,16 +90,14 @@ async function rehydrateAccessToken(): Promise<string | null> {
 async function clearSession(): Promise<void> {
   if (typeof window === "undefined") return;
   try {
-    await fetch("/api/auth/session", { method: "DELETE" });
+    await fetch("/api/auth/session", { method: "DELETE", headers: getCsrfHeaders() });
   } catch (e) {
-    console.warn("[auth] Failed to clear session cookie:", e);
+    logger.warn("[auth] Failed to clear session cookie:", e);
   }
 }
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
-  // If the HMAC key is not loaded yet we cannot verify the payload. Return
-  // null (defer) instead of treating it as tampered and wiping the cache.
   if (!isHmacKeyReady()) return null;
   try {
     const raw = localStorage.getItem(USER_DATA_KEY);
@@ -102,7 +108,44 @@ function getStoredUser(): User | null {
 
     const expectedHMAC = computeHmacSha256Sync(JSON.stringify(store.user));
     if (store.hmac !== expectedHMAC) {
-      console.warn("[auth] HMAC mismatch — user data may be tampered");
+      logger.warn("[auth] HMAC mismatch — user data may be tampered");
+      localStorage.removeItem(USER_DATA_KEY);
+      return null;
+    }
+
+    return store.user;
+  } catch {
+    return null;
+  }
+}
+
+async function getStoredUserAsync(): Promise<User | null> {
+  if (typeof window === "undefined") return null;
+  if (!isHmacKeyReady()) return null;
+  try {
+    const raw = localStorage.getItem(USER_DATA_KEY);
+    if (!raw) return null;
+
+    const passphrase = getUserEncryptionPassphrase();
+    let store: UserStoreWithHmac | null = await decryptFromStorage<UserStoreWithHmac>(
+      USER_DATA_KEY,
+      passphrase,
+    );
+
+    if (!store) {
+      try {
+        store = JSON.parse(raw);
+      } catch {
+        localStorage.removeItem(USER_DATA_KEY);
+        return null;
+      }
+    }
+
+    if (!store || !store.hmac || !store.user) return null;
+
+    const expectedHMAC = computeHmacSha256Sync(JSON.stringify(store.user));
+    if (store.hmac !== expectedHMAC) {
+      logger.warn("[auth] HMAC mismatch — user data may be tampered");
       localStorage.removeItem(USER_DATA_KEY);
       return null;
     }
@@ -129,7 +172,7 @@ async function setStoredUser(user: User): Promise<void> {
         localStorage.setItem(USER_DATA_KEY, JSON.stringify(store));
       });
     } catch (e) {
-      console.warn("[auth] Failed to persist user data:", e);
+      logger.warn("[auth] Failed to persist user data:", e);
     }
   });
 }
@@ -139,7 +182,7 @@ function removeStoredUser(): void {
   try {
     localStorage.removeItem(USER_DATA_KEY);
   } catch (e) {
-    console.warn("[auth] Failed to remove user data:", e);
+    logger.warn("[auth] Failed to remove user data:", e);
   }
 }
 
@@ -175,7 +218,7 @@ function purgeLegacyTokenStorage(): void {
   try {
     for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
   } catch (e) {
-    console.warn("[auth] Failed to purge legacy token storage:", e);
+    logger.warn("[auth] Failed to purge legacy token storage:", e);
   }
 }
 
@@ -252,7 +295,7 @@ const baseStore = (
         try {
           getWalletRegistry().getAdapter("passkey")?.reset?.();
         } catch (e) {
-          console.warn("[auth] Failed to reset passkey adapter:", e);
+          logger.warn("[auth] Failed to reset passkey adapter:", e);
         }
       });
     }
@@ -278,12 +321,13 @@ const baseStore = (
 
     const exp = extractTokenExpiry(token);
     if (exp && Date.now() < exp) {
+      const storedUser = await getStoredUserAsync();
       set({
         isLoading: false,
         isAuthenticated: true,
         token,
         tokenExpiresAt: exp,
-        user: getStoredUser(),
+        user: storedUser ?? getStoredUser(),
       });
       return;
     }
@@ -308,24 +352,28 @@ const baseStore = (
         isLoading: false,
       });
     } catch (e) {
-      console.warn("[auth] Token refresh failed, logging out:", e);
+      logger.warn("[auth] Token refresh failed, logging out:", e);
       get().logout();
     }
   },
 
   setTokens: async (accessToken: string, refreshToken: string, user?: User) => {
+    clearApiClientState();
     setAccessToken(accessToken);
     const exp = extractTokenExpiry(accessToken);
-    if (user) setStoredUser(user);
+    const persisted = await persistSession(accessToken, refreshToken);
+    if (!persisted) {
+      clearAccessToken();
+      throw new Error("Failed to persist session cookies");
+    }
 
+    if (user) setStoredUser(user);
     set({
       token: accessToken,
       tokenExpiresAt: exp ?? Date.now() + 15 * 60 * 1000,
       isAuthenticated: true,
       user: user ?? getStoredUser(),
     });
-
-    await persistSession(accessToken, refreshToken);
   },
 
   updateUser: (user: User) => {
@@ -334,10 +382,10 @@ const baseStore = (
   },
 
   clearTokens: async () => {
-    clearAccessToken();
+    clearApiClientState();
     removeStoredUser();
     purgeLegacyTokenStorage();
-    set({ token: null, tokenExpiresAt: null });
+    set({ token: null, tokenExpiresAt: null, isAuthenticated: false, user: null });
     await clearSession();
   },
 });

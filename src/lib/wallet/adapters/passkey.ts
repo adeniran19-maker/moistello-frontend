@@ -1,11 +1,13 @@
 import { WalletAdapter, WalletMeta, SignOptions, NetworkType } from "../types"
 import { STELLAR_NETWORK } from "@/lib/constants"
+import { getCsrfHeaders } from "@/lib/auth/csrf"
 import {
   publicKeyToStellarAddress,
   hexEncode,
   secureZeroMemory,
 } from "@/lib/crypto/key-derivation"
 import { hexToBytes } from "@noble/hashes/utils.js"
+import { classifyPasskeyError } from "@/lib/passkey/error-messages"
 
 const CREDENTIAL_STORAGE_KEY = "moistello_passkey_credential"
 
@@ -80,7 +82,7 @@ export function createPasskeyAdapter(): WalletAdapter {
   async function apiPost<T>(url: string, body: unknown): Promise<T> {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getCsrfHeaders() },
       body: JSON.stringify(body),
     })
     if (!res.ok) {
@@ -123,11 +125,15 @@ export function createPasskeyAdapter(): WalletAdapter {
             useBrowserAutofill: true,
           })
         } catch (err: unknown) {
-          if (err instanceof Error && err.name === "NotAllowedError") {
-            throw { adapter: "passkey", code: "user_rejected" as const, message: "Authentication cancelled" }
+          const info = classifyPasskeyError(err)
+          throw {
+            adapter: "passkey",
+            code: info.kind === "cancelled" ? "user_rejected" as const : "internal" as const,
+            message: info.title,
+            description: info.description,
+            canRetry: info.canRetry,
+            kind: info.kind,
           }
-          const cause = err instanceof Error ? err.message : String(err)
-          throw { adapter: "passkey", code: "internal" as const, message: cause, cause: String(err) }
         }
 
         const verifyResult = await apiPost<{ verified: boolean; credentialId: string; publicKey: string }>(
@@ -167,11 +173,15 @@ export function createPasskeyAdapter(): WalletAdapter {
           optionsJSON: options as unknown as Parameters<typeof startRegistration>[0]["optionsJSON"],
         })
       } catch (err: unknown) {
-        if (err instanceof Error && err.name === "NotAllowedError") {
-          throw { adapter: "passkey", code: "user_rejected" as const, message: "Registration cancelled" }
+        const info = classifyPasskeyError(err)
+        throw {
+          adapter: "passkey",
+          code: info.kind === "cancelled" ? "user_rejected" as const : "internal" as const,
+          message: info.title,
+          description: info.description,
+          canRetry: info.canRetry,
+          kind: info.kind,
         }
-        const cause = err instanceof Error ? err.message : String(err)
-        throw { adapter: "passkey", code: "internal" as const, message: `Passkey creation failed: ${cause}`, cause: String(err) }
       }
 
       const attestationRecord = attestation as { rawId?: string; id?: string }

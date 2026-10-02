@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
-import { QrCode, Usb, Fingerprint, Wallet, type LucideIcon } from "lucide-react"
+import { QrCode, Usb, ScanFace, Wallet, type LucideIcon } from "lucide-react"
 
 const LUCIDE_ICONS: Record<string, LucideIcon> = {
   walletconnect: QrCode,
   ledger: Usb,
-  passkey: Fingerprint,
+  passkey: ScanFace,
   freighter: Wallet,
   rabet: Wallet,
   xbull: Wallet,
@@ -51,6 +51,10 @@ export function WalletIcon({ id, name, className, size = "md" }: WalletIconProps
           src={`/icons/wallets/${id}.svg`}
           alt={name}
           className={ICON_SIZE[size]}
+          loading="lazy"
+          decoding="async"
+          width={size === "sm" ? 16 : size === "md" ? 20 : 28}
+          height={size === "sm" ? 16 : size === "md" ? 20 : 28}
           onError={() => setSvgFailed(true)}
         />
       </span>

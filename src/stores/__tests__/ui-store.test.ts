@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useUIStore } from "@/stores/ui-store";
+import { useUIStore, clearToastDeduplication } from "@/stores/ui-store";
 
 describe("useUIStore", () => {
   beforeEach(() => {
+    clearToastDeduplication();
     useUIStore.setState({
       theme: "system",
       density: "comfortable",
@@ -223,6 +224,97 @@ describe("useUIStore", () => {
       });
 
       expect(vi.getTimerCount()).toBe(1);
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("caps stacked toasts so the corner never overflows", () => {
+      vi.useFakeTimers();
+      vi.spyOn(Date, "now").mockReturnValue(1000);
+
+      for (let i = 0; i < 8; i++) {
+        useUIStore.getState().addToast({
+          type: "info",
+          title: `Toast ${i}`,
+          duration: 60000,
+        });
+      }
+
+      const toasts = useUIStore.getState().toasts;
+      expect(toasts).toHaveLength(5);
+      expect(toasts[0].title).toBe("Toast 3");
+      expect(toasts[4].title).toBe("Toast 7");
+
+      // Evicted toasts must not leave orphaned dismiss timers behind.
+      expect(vi.getTimerCount()).toBe(5);
+
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("deduplicates identical toasts added within 5000ms", () => {
+      vi.useFakeTimers();
+      vi.spyOn(Date, "now").mockReturnValue(1000);
+
+      // First call adds toast
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Query Failed",
+        description: "Network error",
+      });
+      expect(useUIStore.getState().toasts).toHaveLength(1);
+
+      // Parallel/duplicate call within 5000ms is ignored
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Query Failed",
+        description: "Network error",
+      });
+      expect(useUIStore.getState().toasts).toHaveLength(1);
+
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("allows different toasts to be added within 5000ms", () => {
+      vi.useFakeTimers();
+      vi.spyOn(Date, "now").mockReturnValue(1000);
+
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Error A",
+      });
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Error B",
+      });
+
+      expect(useUIStore.getState().toasts).toHaveLength(2);
+
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("allows identical toasts to be added again after 5000ms", () => {
+      vi.useFakeTimers();
+      vi.spyOn(Date, "now").mockReturnValue(1000);
+
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Timeout",
+      });
+      expect(useUIStore.getState().toasts).toHaveLength(1);
+
+      // Advance past 5000ms deduplication window
+      vi.spyOn(Date, "now").mockReturnValue(6500);
+
+      useUIStore.getState().addToast({
+        type: "error",
+        title: "Timeout",
+      });
+
+      expect(useUIStore.getState().toasts).toHaveLength(2);
+
       vi.useRealTimers();
       vi.restoreAllMocks();
     });

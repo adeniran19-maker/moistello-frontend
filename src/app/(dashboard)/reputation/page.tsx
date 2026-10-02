@@ -1,13 +1,15 @@
 "use client"
 
 import React from "react"
-import { AlertCircle, Award, Sparkles } from "lucide-react"
+import { CircleAlert, Award, Sparkles } from "lucide-react"
 import { EmptyState } from "@/components/shared/empty-state"
+import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MoiScoreGauge } from "@/components/reputation/moi-score-gauge"
-import { ReputationBreakdown } from "@/components/reputation/reputation-breakdown"
-import { ReputationHistory } from "@/components/reputation/reputation-history"
-import { TierCard } from "@/components/reputation/tier-card"
+
+const MoiScoreGauge = dynamic(() => import("@/components/reputation/moi-score-gauge").then(m => m.MoiScoreGauge), { ssr: false })
+const ReputationBreakdown = dynamic(() => import("@/components/reputation/reputation-breakdown").then(m => m.ReputationBreakdown), { ssr: false })
+const ReputationHistory = dynamic(() => import("@/components/reputation/reputation-history").then(m => m.ReputationHistory), { ssr: false })
+const TierCard = dynamic(() => import("@/components/reputation/tier-card").then(m => m.TierCard), { ssr: false })
 import { useAuth } from "@/hooks/use-auth"
 import { useReputation } from "@/hooks/use-reputation"
 
@@ -35,7 +37,7 @@ export default function ReputationPage() {
   if (isError) {
     return (
       <EmptyState
-        icon={<AlertCircle />}
+        icon={<CircleAlert />}
         title="Failed to load reputation"
         description="Something went wrong. Please try again later."
         className="border border-red-400/20"

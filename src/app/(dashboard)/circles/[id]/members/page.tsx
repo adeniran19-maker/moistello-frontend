@@ -2,14 +2,13 @@
 
 import React, { useMemo, useState } from "react"
 import { useParams } from "next/navigation"
-import Link from "next/link"
 import { motion } from "framer-motion"
 import { ArrowLeft, Users, Inbox, Hash, Search, SlidersHorizontal, X } from "lucide-react"
 import { useCircleMembers } from "@/hooks/use-circles"
 import { useAuth } from "@/hooks/use-auth"
 import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
-import { Button } from "@/components/ui/button"
+import { EmptyState, MemberTabsEmptyState } from "@/components/shared/empty-state"
+import { Button, ButtonLink } from "@/components/ui/button"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -97,11 +96,9 @@ export default function CircleMembersPage() {
             { label: "Members" },
           ]}
           action={
-            <Link href={`/circles/${circleId}`}>
-              <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            <ButtonLink href={`/circles/${circleId}`}  variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
                 Back
-              </Button>
-            </Link>
+              </ButtonLink>
           }
         />
         <div className="glass-premium rounded-2xl overflow-hidden">
@@ -147,20 +144,14 @@ export default function CircleMembersPage() {
           { label: "Members" },
         ]}
         action={
-          <Link href={`/circles/${circleId}`}>
-            <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+          <ButtonLink href={`/circles/${circleId}`}  variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
               Back to Circle
-            </Button>
-          </Link>
+            </ButtonLink>
         }
       />
 
       {members.length === 0 ? (
-        <EmptyState
-          icon={<Users className="h-6 w-6" />}
-          title="No members yet"
-          description="This circle has no members."
-        />
+        <MemberTabsEmptyState />
       ) : (
         <>
           <div className="border-y border-border/70 py-4">
@@ -185,9 +176,10 @@ export default function CircleMembersPage() {
                 />
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:w-[34rem]">
-                <Select options={statusOptions} value={status} onChange={setStatus} />
-                <Select options={positionOptions} value={position} onChange={setPosition} />
+                <Select label="Member status" options={statusOptions} value={status} onChange={setStatus} />
+                <Select label="Member position" options={positionOptions} value={position} onChange={setPosition} />
                 <Select
+                  label="Joined period"
                   options={[
                     { label: "Joined anytime", value: "" },
                     { label: "Joined in 7 days", value: "7d" },

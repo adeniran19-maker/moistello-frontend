@@ -2,18 +2,21 @@ const CACHE_VERSION = 'v1'
 const STATIC_CACHE = `static-${CACHE_VERSION}`
 const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`
 const API_CACHE = `api-${CACHE_VERSION}`
-const API_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-
 // Set self.__DEBUG = true in development to see SW logs.
 const DEBUG = false
-function swLog(...args: unknown[]) {
-  if (DEBUG) console.log('[SW]', ...args)
+function swLog(message, ...context) {
+  if (DEBUG) {
+    self.dispatchEvent(new CustomEvent('moistello:sw-log', {
+      detail: { level: 'debug', message, context },
+    }))
+  }
 }
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/favicon.ico',
+  '/offline',
 ]
 
 self.addEventListener('install', (event) => {
@@ -40,9 +43,10 @@ self.addEventListener('activate', (event) => {
           }
         })
       )
+    }).then(() => {
+      return self.clients.claim()
     })
   )
-  self.clients.claim()
 })
 
 self.addEventListener('fetch', (event) => {
@@ -120,7 +124,8 @@ async function networkFirst(request) {
     if (cached) {
       return cached
     }
-    return new Response('Offline - content not available', {
+    // Serve offline fallback page for navigation requests
+    return caches.match('/offline') || new Response('Offline - content not available', {
       status: 503,
       statusText: 'Service Unavailable',
       headers: new Headers({

@@ -1,11 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, AlertCircle, QrCode, Shield, Usb, WifiOff, X } from "lucide-react"
+import { LoaderCircle, CircleAlert, QrCode, Shield, Usb, WifiOff, X } from "lucide-react"
 import { cn } from "@/lib/cn"
+import dynamic from "next/dynamic"
 import type { WalletId } from "@/lib/wallet/types"
-import { WalletConnectQR } from "./walletconnect-qr"
 import { WalletConnectDeepLink } from "./walletconnect-deeplink"
+
+const WalletConnectQR = dynamic(
+  () => import("./walletconnect-qr").then((m) => m.WalletConnectQR),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-8">
+        <LoaderCircle className="h-6 w-6 animate-spin text-aurora-violet" />
+      </div>
+    ),
+  }
+)
 
 export interface WalletDescriptor {
   id: WalletId
@@ -166,7 +178,7 @@ export function WalletItem({
 
       {isBusy && (
         <>
-          <Loader2 className="h-4 w-4 animate-spin text-aurora-violet shrink-0" />
+          <LoaderCircle className="h-4 w-4 animate-spin text-aurora-violet shrink-0" />
           {isWC && (
             <span className="text-xs text-muted-foreground shrink-0">
               Opening WalletConnect...
@@ -241,7 +253,7 @@ export function WalletList({
 
       {isScanning && (
         <div className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-aurora-violet/10 border border-aurora-violet/20 text-xs text-aurora-violet font-medium animate-pulse mb-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin shrink-0" />
           <span>Scanning for available wallets...</span>
         </div>
       )}
@@ -278,7 +290,7 @@ export function WalletList({
 
       {error && (
         <div className="flex items-start gap-2 text-sm text-red-400">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <CircleAlert className="h-4 w-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
@@ -307,7 +319,7 @@ export function ConnectedWalletCard({
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">
-          Connected &#x2713; {name}
+          Connected &#x2713; <span>{name}</span>
         </p>
         <p className="text-xs text-muted-foreground font-mono truncate">
           {address ? address : ""}

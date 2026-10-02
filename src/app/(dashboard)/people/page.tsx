@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import Link from "next/link"
 import {
   Search,
-  Filter,
+  ListFilter,
   Award,
   ChevronLeft,
   ChevronRight,
@@ -14,7 +13,7 @@ import {
   RotateCcw,
 } from "lucide-react"
 import { PageHeader } from "@/components/shared/page-header"
-import { Button } from "@/components/ui/button"
+import { Button, ButtonLink } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -191,7 +190,7 @@ export default function PeopleDirectoryPage() {
         description="Discover community members, view on-chain reputation scores, and connect."
       />
 
-      {/* Controls / Filter Bar */}
+      {/* Controls / ListFilter Bar */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border border-white/10 rounded-xl p-4 bg-white/[0.02]">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -209,8 +208,9 @@ export default function PeopleDirectoryPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-aurora-violet" />
+            <ListFilter className="h-4 w-4 text-aurora-violet" />
             <select
+              aria-label="ListFilter people by reputation tier"
               value={tierFilter}
               onChange={(e) => {
                 setTierFilter(e.target.value)
@@ -230,6 +230,7 @@ export default function PeopleDirectoryPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Sort:</span>
             <select
+              aria-label="Sort people"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as "score" | "circles" | "savings")}
               className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-foreground focus:outline-none focus:border-aurora-violet"
@@ -338,17 +339,18 @@ export default function PeopleDirectoryPage() {
               </div>
 
               <div className="flex items-center justify-between pt-1">
-                <Link href={`/wallet/transfer?recipient=${encodeURIComponent(person.walletAddress)}`}>
-                  <Button variant="outline" size="sm" leftIcon={<Send className="h-3.5 w-3.5" />}>
-                    Transfer
-                  </Button>
-                </Link>
+                <ButtonLink
+                  href={`/wallet/transfer?recipient=${encodeURIComponent(person.walletAddress)}`}
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Send className="h-3.5 w-3.5" />}
+                >
+                  Transfer
+                </ButtonLink>
 
-                <Link href={`/people/${person.id}`}>
-                  <Button variant="ghost" size="sm" rightIcon={<ArrowRight className="h-3.5 w-3.5" />}>
-                    View Profile
-                  </Button>
-                </Link>
+                <ButtonLink href={`/people/${person.id}`} variant="ghost" size="sm" rightIcon={<ArrowRight className="h-3.5 w-3.5" />}>
+                  View Profile
+                </ButtonLink>
               </div>
             </div>
           ))}
@@ -368,8 +370,10 @@ export default function PeopleDirectoryPage() {
 
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="outline"
               size="sm"
+              aria-label="Previous people page"
               onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
               data-testid="prev-page-button"
@@ -380,8 +384,10 @@ export default function PeopleDirectoryPage() {
               Page {currentPage} of {totalPages}
             </span>
             <Button
+              type="button"
               variant="outline"
               size="sm"
+              aria-label="Next people page"
               onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
               data-testid="next-page-button"

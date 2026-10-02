@@ -1,7 +1,8 @@
 "use client"
 
+import { logger } from "@/lib/logger"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ArrowLeft, CheckCircle, Clock, FileSignature, Loader2 } from "lucide-react"
+import { ArrowLeft, CircleCheck, Clock, FilePen, LoaderCircle } from "lucide-react"
 import { ConnectedBadge } from "./connected-badge"
 import { ErrorDisplay } from "./error-display"
 import type { AuthErrorCode, AuthFlowStatus } from "@/stores/auth-flow-store"
@@ -105,7 +106,7 @@ export function SignStep({
     try {
       await onSign()
     } catch (e) {
-      console.error("[sign-step] Sign failed:", e)
+      logger.error("[sign-step] Sign failed:", e)
       setIsSigning(false)
     }
   }, [onSign])
@@ -115,7 +116,7 @@ export function SignStep({
     try {
       await onSign()
     } catch (e) {
-      console.error("[sign-step] Sign retry failed:", e)
+      logger.error("[sign-step] Sign retry failed:", e)
       setIsSigning(false)
     }
   }, [onSign])
@@ -124,13 +125,13 @@ export function SignStep({
     return (
       <div className="flex flex-col items-center gap-4 py-8" role="status" aria-live="polite">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/20">
-          <CheckCircle className="h-7 w-7 text-emerald-400" />
+          <CircleCheck className="h-7 w-7 text-emerald-400" />
         </div>
         <p className="text-sm font-medium text-foreground">
           {mode === "login" ? t("auth.sign.welcomeBack") : t("auth.sign.welcomeToMoistello")}
         </p>
         <p className="text-xs text-muted-foreground">{t("auth.sign.redirecting")}</p>
-        <Loader2 className="h-5 w-5 animate-spin text-aurora-violet" />
+        <LoaderCircle className="h-5 w-5 animate-spin text-aurora-violet" />
       </div>
     )
   }
@@ -150,7 +151,7 @@ export function SignStep({
       <div className="text-center space-y-2">
         <div className="flex justify-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-aurora-violet/20">
-            <FileSignature className="h-6 w-6 text-aurora-violet" />
+            <FilePen className="h-6 w-6 text-aurora-violet" />
           </div>
         </div>
         <p className="font-heading text-lg font-medium text-foreground">
@@ -217,7 +218,7 @@ export function SignStep({
           >
             {isSigning ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <LoaderCircle className="h-4 w-4 animate-spin" />
                 {status.status === "signing" ? t("auth.sign.signing") : t("auth.sign.preparing")}
               </>
             ) : isOnCooldown ? (
@@ -228,18 +229,18 @@ export function SignStep({
           </button>
         ) : (
           <div className="flex items-center justify-center gap-2 text-sm text-emerald-400">
-            <CheckCircle className="h-4 w-4" />
+            <CircleCheck className="h-4 w-4" />
             {t("auth.sign.messageSigned")}
           </div>
         )}
 
         <p className="text-center text-2xs text-muted-foreground">
           {t("auth.sign.terms")}
-          <a href="/terms" target="_blank" className="text-aurora-cyan hover:underline">
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-aurora-cyan hover:underline">
             {t("auth.sign.termsLink")}
           </a>{" "}
           and{" "}
-          <a href="/privacy" target="_blank" className="text-aurora-cyan hover:underline">
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-aurora-cyan hover:underline">
             {t("auth.sign.privacyLink")}
           </a>
         </p>

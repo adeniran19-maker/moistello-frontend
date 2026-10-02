@@ -2,16 +2,15 @@
 
 import React, { useState, useMemo, useCallback } from "react"
 import { useParams } from "next/navigation"
-import Link from "next/link"
 import { useCircle, useCircleMembers, useCircleRounds } from "@/hooks/use-circles"
 import { useContributions } from "@/hooks/use-contributions"
 import { useCirclePayouts } from "@/hooks/use-payouts"
 import { PageHeader } from "@/components/shared/page-header"
-import { Button } from "@/components/ui/button"
+import { Button, ButtonLink } from "@/components/ui/button"
 import { cn } from "@/lib/cn"
 import {
-  ArrowLeft, Download, FileText, Table, Check, AlertCircle,
-  Calendar, Columns, Filter, RefreshCw,
+  ArrowLeft, Download, FileText, Table, Check, CircleAlert,
+  Calendar, Columns3, ListFilter, RefreshCw,
 } from "lucide-react"
 import { copyToClipboard } from "@/lib/clipboard"
 import {
@@ -28,24 +27,35 @@ import type { Contribution, Payout } from "@/types"
 // ─── Column checkbox ─────────────────────────────────────────────────────────
 
 function ColumnToggle({
+  id,
   label,
   checked,
   onChange,
 }: {
+  id: string
   label: string
   checked: boolean
   onChange: (v: boolean) => void
 }) {
+  const inputId = id
   return (
-    <label className="flex items-center gap-2 cursor-pointer group select-none">
+    <label htmlFor={inputId} className="flex items-center gap-2 cursor-pointer group select-none">
+      <input
+        id={inputId}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="sr-only peer"
+      />
       <span
+        aria-hidden="true"
         className={cn(
           "h-4 w-4 rounded border transition-colors flex items-center justify-center shrink-0",
           checked
             ? "bg-aurora-violet border-aurora-violet"
             : "border-white/20 group-hover:border-aurora-violet/50",
+          "peer-focus-visible:ring-2 peer-focus-visible:ring-aurora-violet/50",
         )}
-        onClick={() => onChange(!checked)}
       >
         {checked && <Check className="h-2.5 w-2.5 text-white" />}
       </span>
@@ -197,17 +207,16 @@ export default function ExportPage() {
               <button
                 type="button"
                 onClick={handleRefresh}
+                aria-label="Refresh export data"
                 disabled={isLoading}
                 className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 title="Refresh data"
               >
                 <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
               </button>
-              <Link href={`/circles/${circleId}`}>
-                <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+              <ButtonLink href={`/circles/${circleId}`}  variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
                   Back
-                </Button>
-              </Link>
+                </ButtonLink>
             </div>
           }
         />
@@ -230,13 +239,14 @@ export default function ExportPage() {
       {/* ── Scope selector — pill row ── */}
       <div>
         <p className="text-xs font-heading font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Filter className="h-3 w-3" /> Export Scope
+          <ListFilter className="h-3 w-3" /> Export Scope
         </p>
         <div className="flex flex-wrap gap-2">
           {scopes.map((s) => (
             <button
               key={s.value}
               type="button"
+              aria-pressed={scope === s.value}
               onClick={() => setScope(s.value)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-body transition-all border",
@@ -264,8 +274,10 @@ export default function ExportPage() {
         </p>
         <div className="flex flex-wrap gap-3">
           <div className="flex-1 min-w-[140px]">
-            <label className="text-xs text-muted-foreground block mb-1">From</label>
+            <label htmlFor="export-date-from" className="text-xs text-muted-foreground block mb-1">From</label>
             <input
+              id="export-date-from"
+              aria-label="Export start date"
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
@@ -273,8 +285,10 @@ export default function ExportPage() {
             />
           </div>
           <div className="flex-1 min-w-[140px]">
-            <label className="text-xs text-muted-foreground block mb-1">To</label>
+            <label htmlFor="export-date-to" className="text-xs text-muted-foreground block mb-1">To</label>
             <input
+              id="export-date-to"
+              aria-label="Export end date"
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
@@ -304,9 +318,11 @@ export default function ExportPage() {
           <button
             type="button"
             onClick={() => setShowColumns((v) => !v)}
+            aria-expanded={showColumns}
+            aria-controls="export-column-selection"
             className="flex items-center gap-2 text-xs font-heading font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
           >
-            <Columns className="h-3 w-3" />
+            <Columns3 className="h-3 w-3" />
             Column Selection
             <span className="text-aurora-violet text-xs normal-case font-normal">
               {showColumns ? "hide" : "show"}
@@ -314,7 +330,7 @@ export default function ExportPage() {
           </button>
 
           {showColumns && (
-            <div className="mt-3 space-y-4">
+            <div id="export-column-selection" className="mt-3 space-y-4">
               {(scope === "all" || scope === "contributions") && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2 font-medium">Contributions</p>
@@ -322,12 +338,14 @@ export default function ExportPage() {
                     {CONTRIBUTION_COLUMNS.map((col) => (
                       <ColumnToggle
                         key={col.key}
+                        id={`export-contribution-${col.key}`}
                         label={col.label}
                         checked={contribCols.has(col.key)}
                         onChange={(v) => {
                           setContribCols((prev) => {
                             const next = new Set(prev)
-                            v ? next.add(col.key) : next.delete(col.key)
+                            if (v) next.add(col.key)
+                            else next.delete(col.key)
                             return next
                           })
                         }}
@@ -344,12 +362,14 @@ export default function ExportPage() {
                     {PAYOUT_COLUMNS.map((col) => (
                       <ColumnToggle
                         key={col.key}
+                        id={`export-payout-${col.key}`}
                         label={col.label}
                         checked={payoutCols.has(col.key)}
                         onChange={(v) => {
                           setPayoutCols((prev) => {
                             const next = new Set(prev)
-                            v ? next.add(col.key) : next.delete(col.key)
+                            if (v) next.add(col.key)
+                            else next.delete(col.key)
                             return next
                           })
                         }}
@@ -366,12 +386,14 @@ export default function ExportPage() {
                     {MEMBER_COLUMNS.map((col) => (
                       <ColumnToggle
                         key={col.key}
+                        id={`export-member-${col.key}`}
                         label={col.label}
                         checked={memberCols.has(col.key)}
                         onChange={(v) => {
                           setMemberCols((prev) => {
                             const next = new Set(prev)
-                            v ? next.add(col.key) : next.delete(col.key)
+                            if (v) next.add(col.key)
+                            else next.delete(col.key)
                             return next
                           })
                         }}
@@ -396,6 +418,7 @@ export default function ExportPage() {
             <button
               key={f.value}
               type="button"
+              aria-pressed={format === f.value}
               onClick={() => setFormat(f.value as ExportFormat)}
               className={cn(
                 "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-body transition-all border",
@@ -441,7 +464,7 @@ export default function ExportPage() {
 
       {/* ── Info notice ── */}
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl border-l-2 border-l-amber-400/40 bg-amber-400/5">
-        <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+        <CircleAlert className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
           Up to 200 most recent records are exported. For complete history, use the date range
           filter to export in batches.

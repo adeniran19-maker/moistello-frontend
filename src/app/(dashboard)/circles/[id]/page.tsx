@@ -23,18 +23,31 @@ import { useCirclePayouts } from "@/hooks/use-payouts";
 import { useAuth } from "@/hooks/use-auth";
 import { useUIStore } from "@/stores/ui-store";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
+import dynamic from "next/dynamic";
 import { CircleMembersPreview } from "./circle-members-preview";
 import { CircleStatCards } from "./circle-stat-cards";
 import { CircleRoundTimeline } from "./circle-round-timeline";
 import { CirclePayoutsList } from "./circle-payouts-list";
-import { CircleContributeModal } from "./circle-contribute-modal";
-import { CircleInviteModal } from "./circle-invite-modal";
-import { CircleJoinCodeModal } from "./circle-join-code-modal";
 import { useInviteGeneration } from "./use-invite-generation";
+
+const CircleContributeModal = dynamic(
+  () => import("./circle-contribute-modal").then((m) => m.CircleContributeModal),
+  { ssr: false }
+);
+
+const CircleInviteModal = dynamic(
+  () => import("./circle-invite-modal").then((m) => m.CircleInviteModal),
+  { ssr: false }
+);
+
+const CircleJoinCodeModal = dynamic(
+  () => import("./circle-join-code-modal").then((m) => m.CircleJoinCodeModal),
+  { ssr: false }
+);
 
 const CIRCLE_SUB_NAV = (circleId: string, isOrganizer: boolean) => [
   { href: `/circles/${circleId}/activity`, label: "Activity" },
@@ -178,9 +191,7 @@ export default function CircleDetailPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             The circle you are looking for does not exist or has been removed.
           </p>
-          <Link href="/circles" className="mt-6">
-            <Button variant="primary">Back to Circles</Button>
-          </Link>
+          <ButtonLink href="/circles" className="mt-6"  variant="primary">Back to Circles</ButtonLink>
         </motion.div>
       </div>
     );
@@ -209,15 +220,13 @@ export default function CircleDetailPage() {
               {circle.status}
             </Badge>
             {isOrganizer && (
-              <Link href={`/circles/${circleId}/settings`}>
-                <Button
+              <ButtonLink href={`/circles/${circleId}/settings`}
                   variant="outline"
                   size="sm"
                   leftIcon={<Settings className="h-4 w-4" />}
                 >
                   Manage
-                </Button>
-              </Link>
+                </ButtonLink>
             )}
           </div>
         }
@@ -328,7 +337,7 @@ export default function CircleDetailPage() {
         )}
 
         {joinError && (
-          <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+          <div role="alert" aria-live="assertive" className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
             {joinError}
           </div>
         )}

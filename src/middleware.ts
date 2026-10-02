@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { buildCsp, generateNonce } from "@/lib/security/csp"
+import { buildCsp, cspMode, CSP_REPORT_PATH, generateNonce } from "@/lib/security/csp"
 import { API_CSP } from "@/lib/security/api-csp.mjs"
 import {
   ACCESS_TOKEN_COOKIE,
@@ -8,6 +8,7 @@ import {
   CSRF_TOKEN_MAX_AGE,
   SESSION_COOKIE_OPTIONS,
 } from "@/lib/auth/session-cookies"
+import { LOCALE_COOKIE, resolveLocale } from "@/lib/locale/locale-cookie"
 
 // Protected routes that require authentication
 const PROTECTED_PATHS = ["/circles", "/communities", "/wallet", "/settings", "/profile", "/notifications", "/contributions", "/payouts"]
@@ -41,6 +42,25 @@ function attachCsrfCookie(response: NextResponse, csrfToken: string) {
   })
 }
 
+function getAllowedOrigins(request: NextRequest): Set<string> {
+  const origins = new Set([request.nextUrl.origin])
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "production" ? "https://moistello.com" : undefined)
+  if (configuredAppUrl) {
+    try {
+      origins.add(new URL(configuredAppUrl).origin)
+    } catch {
+      origins.add(configuredAppUrl)
+    }
+  }
+  if (process.env.NODE_ENV !== "production") {
+    origins.add("http://localhost:3000")
+    origins.add("http://localhost:1110")
+    origins.add("http://127.0.0.1:3000")
+    origins.add("http://127.0.0.1:1110")
+  }
+  return origins
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -68,7 +88,20 @@ export function middleware(request: NextRequest) {
   // script allowances at all.
   const nonce = generateNonce()
   const isApiRoute = pathname.startsWith("/api/")
-  const csp = isApiRoute ? API_CSP : buildCsp(nonce)
+  const mode = cspMode()
+  const csp = isApiRoute ? API_CSP : buildCsp(nonce, undefined, mode)
+  // Report-only mode swaps which header carries the page policy. Same string,
+  // but the browser reports violations instead of blocking the resource, which
+  // is what makes a candidate policy safe to deploy ahead of promotion.
+  //
+  // API routes are excluded deliberately. The API policy is a different,
+  // narrower policy with no per-request nonce and no reporting directives, and
+  // it is also served statically from next.config.mjs under the enforcing
+  // header. Letting the mode rename that header would put two CSP headers with
+  // different semantics on every JSON response and silently un-enforce it.
+  const cspHeaderName = !isApiRoute && mode === "report-only"
+    ? "Content-Security-Policy-Report-Only"
+    : "Content-Security-Policy"
   const csrfToken = request.cookies.get(CSRF_TOKEN_COOKIE)?.value || generateCsrfToken()
   const shouldSetCsrfCookie = !request.cookies.has(CSRF_TOKEN_COOKIE)
 
@@ -76,22 +109,42 @@ export function middleware(request: NextRequest) {
   requestHeaders.set(NONCE_HEADER, nonce)
   requestHeaders.set(CSRF_HEADER, csrfToken)
   
-  // #211: Add locale header for dynamic lang attribute
-  const locale = request.cookies.get("moistello_locale")?.value || "en"
+  // #211: Add locale header for dynamic lang attribute. The cookie is the only
+  // locale state the server can see, and it is written the moment the visitor
+  // picks a language — so this survives the login redirect instead of falling
+  // back to English on every document request.
+  //
+  // resolveLocale() rather than the raw value: the cookie is attacker-settable
+  // and this header ends up in the <html lang> attribute, so an unvalidated
+  // value must never be forwarded as-is.
+  const locale = resolveLocale(request.cookies.get(LOCALE_COOKIE)?.value)
   requestHeaders.set("x-locale", locale)
 
-  // #207: CSRF protection for mutating API routes
-  if (isApiRoute && ["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
+  // Log ingestion is a same-origin, non-state-changing telemetry endpoint. It
+  // intentionally bypasses the session CSRF handshake because sendBeacon cannot
+  // attach custom headers; the route validates and redacts its payload instead.
+  //
+  // CSP violation reports are in the same category for the same reason: the
+  // *browser* generates the POST, so it cannot carry x-csrf-token either. Both
+  // endpoints are treated as one class because the failure mode is identical —
+  // without the carve-out the double-submit check 403s every single report and
+  // the endpoint silently collects nothing, which is worse than not shipping it
+  // because it looks like it is working.
+  const isTelemetryRoute = pathname === "/api/logs" || pathname === CSP_REPORT_PATH
+  if (isTelemetryRoute) {
     const origin = request.headers.get("origin")
-    const allowedOrigins = [
-      process.env.NEXT_PUBLIC_APP_URL || "https://moistello.com",
-      "http://localhost:3000",
-    ]
-    
-    if (!origin || !allowedOrigins.some(allowed => origin === allowed || origin.startsWith(allowed))) {
+    if (origin && !getAllowedOrigins(request).has(origin)) {
       return NextResponse.json({ error: "Invalid origin" }, { status: 403 })
     }
-    
+  }
+
+  // #207: CSRF protection for mutating API routes
+  if (isApiRoute && !isTelemetryRoute && ["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
+    const origin = request.headers.get("origin")
+    if (!origin || !getAllowedOrigins(request).has(origin)) {
+      return NextResponse.json({ error: "Invalid origin" }, { status: 403 })
+    }
+
     const clientCsrf = request.headers.get("x-csrf-token")
     if (clientCsrf !== csrfToken) {
       return NextResponse.json({ error: "Invalid CSRF token" }, { status: 403 })
@@ -104,7 +157,7 @@ export function middleware(request: NextRequest) {
       if (pathname === path || pathname.startsWith(path + "/")) {
         const url = new URL("/login", request.url)
         const redirect = NextResponse.redirect(url)
-        redirect.headers.set("Content-Security-Policy", csp)
+        redirect.headers.set(cspHeaderName, csp)
         if (shouldSetCsrfCookie) attachCsrfCookie(redirect, csrfToken)
         return redirect
       }
@@ -112,7 +165,7 @@ export function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
-  response.headers.set("Content-Security-Policy", csp)
+  response.headers.set(cspHeaderName, csp)
   if (shouldSetCsrfCookie) attachCsrfCookie(response, csrfToken)
   return response
 }

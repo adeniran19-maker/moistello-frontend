@@ -1,11 +1,13 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
-import { Wallet, Loader2, Shield } from "lucide-react"
+import { Wallet, LoaderCircle, Shield } from "lucide-react"
 import { WalletGrid } from "./wallet-grid"
+import { PasskeyErrorBanner } from "./passkey-error-banner"
 import { useMultiWalletStore } from "@/stores/multi-wallet-store"
 import { useWalletConnectStore } from "@/stores/walletconnect-store"
+import { classifyPasskeyError, type PasskeyErrorInfo } from "@/lib/passkey/error-messages"
 
 const AuthConnectionState = dynamic(
   () => import("./auth-connection-state").then((m) => m.AuthConnectionState),
@@ -31,15 +33,43 @@ export function ChooseWalletStep({ mode, onPasskeyLogin }: ChooseWalletStepProps
   const resetWc2Pairing = useWalletConnectStore((s) => s.reset)
   const connect = useMultiWalletStore((s) => s.connect)
 
+  const [passkeyError, setPasskeyError] = useState<PasskeyErrorInfo | null>(null)
+
   const isWc2Active = wc2PairingState !== "idle" && wc2PairingState !== "approved"
 
   const handleSelect = useCallback(
-    (walletId: string) => {
+    async (walletId: string) => {
       if (connectingWalletId) return
-      connect(walletId as Parameters<typeof connect>[0])
+      setPasskeyError(null)
+      try {
+        await connect(walletId as Parameters<typeof connect>[0])
+      } catch (err: unknown) {
+        if (walletId === "passkey") {
+          setPasskeyError(classifyPasskeyError(err))
+        } else {
+          throw err
+        }
+      }
     },
     [connectingWalletId, connect]
   )
+
+  const handlePasskeyLogin = useCallback(async () => {
+    setPasskeyError(null)
+    if (!onPasskeyLogin) return
+    try {
+      await onPasskeyLogin()
+    } catch (err: unknown) {
+      setPasskeyError(classifyPasskeyError(err))
+    }
+  }, [onPasskeyLogin])
+
+  const handlePasskeyRetry = useCallback(() => {
+    setPasskeyError(null)
+    if (mode === "login" && onPasskeyLogin) {
+      void handlePasskeyLogin()
+    }
+  }, [mode, onPasskeyLogin, handlePasskeyLogin])
 
   const hasPasskey = useMemo(() => {
     return detectedWallets.some((w) => w.id === "passkey" && w.status === "detected")
@@ -63,7 +93,7 @@ export function ChooseWalletStep({ mode, onPasskeyLogin }: ChooseWalletStepProps
   if (isScanning) {
     return (
       <div className="flex flex-col items-center gap-4 py-8" role="status">
-        <Loader2 className="h-8 w-8 animate-spin text-aurora-violet" />
+        <LoaderCircle className="h-8 w-8 animate-spin text-aurora-violet" />
         <p className="text-sm text-muted-foreground">Detecting wallets...</p>
       </div>
     )
@@ -86,12 +116,23 @@ export function ChooseWalletStep({ mode, onPasskeyLogin }: ChooseWalletStepProps
 
   return (
     <div className="space-y-4">
+      {passkeyError && (
+        <PasskeyErrorBanner
+          title={passkeyError.title}
+          description={passkeyError.description}
+          kind={passkeyError.kind}
+          canRetry={passkeyError.canRetry}
+          onRetry={passkeyError.canRetry ? handlePasskeyRetry : undefined}
+          onSwitchMethod={() => setPasskeyError(null)}
+        />
+      )}
+
       {passkeyWallet && (
         <div className="space-y-3">
           {mode === "login" && hasPasskey && onPasskeyLogin && (
             <button
               type="button"
-              onClick={onPasskeyLogin}
+              onClick={handlePasskeyLogin}
               className="w-full flex items-center gap-3 rounded-xl holo-border px-4 py-3 text-left transition-all hover:bg-white/[0.06]"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-aurora-violet/20 text-aurora-violet">
@@ -131,7 +172,7 @@ export function ChooseWalletStep({ mode, onPasskeyLogin }: ChooseWalletStepProps
                 </p>
               </div>
               {connectingWalletId === "passkey" && (
-                <Loader2 className="h-4 w-4 animate-spin text-aurora-violet shrink-0" />
+                <LoaderCircle className="h-4 w-4 animate-spin text-aurora-violet shrink-0" />
               )}
             </button>
           )}
@@ -192,7 +233,7 @@ export function ChooseWalletStep({ mode, onPasskeyLogin }: ChooseWalletStepProps
                 <p className="mt-0.5 text-2xs text-muted-foreground">{w.description}</p>
               </div>
               {connectingWalletId === w.id && (
-                <Loader2 className="h-4 w-4 animate-spin text-aurora-violet shrink-0" />
+                <LoaderCircle className="h-4 w-4 animate-spin text-aurora-violet shrink-0" />
               )}
             </button>
           ))}

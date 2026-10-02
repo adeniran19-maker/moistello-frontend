@@ -1,7 +1,8 @@
 "use client";
 
+import { logger } from "@/lib/logger"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useOptimisticMutation, OPTIMISTIC_PENDING_USER_ID, createTempId } from "./use-optimistic-mutation";
+import { useOptimisticMutation, OPTIMISTIC_PENDING_USER_ID } from "./use-optimistic-mutation";
 import { get, post } from "@/lib/api-client";
 import { useUIStore } from "@/stores/ui-store";
 import { queryKeys } from "@/lib/query-keys";
@@ -120,6 +121,28 @@ export function useCircle(id: string) {
   });
 }
 
+export function useCircleMembers(circleId: string) {
+  return useQuery({
+    queryKey: queryKeys.circles.members(circleId),
+    queryFn: async () => {
+      const response = await get<ApiResponse<{ members: CircleMember[] }>>(`/circles/${circleId}/members`);
+      return response.data?.members ?? [];
+    },
+    enabled: !!circleId,
+  });
+}
+
+export function useCircleRounds(circleId: string) {
+  return useQuery({
+    queryKey: queryKeys.circles.rounds(circleId),
+    queryFn: async () => {
+      const response = await get<ApiResponse<{ rounds: CircleRound[] }>>(`/circles/${circleId}/rounds`);
+      return response.data?.rounds ?? [];
+    },
+    enabled: !!circleId,
+  });
+}
+
 export function useStartCircle() {
   const queryClient = useQueryClient();
   const addToast = useUIStore((s) => s.addToast);
@@ -132,11 +155,12 @@ export function useStartCircle() {
       queryClient.invalidateQueries({ queryKey: queryKeys.circles.all });
     },
     onError: (err) => {
-      console.error("[useStartCircle] Failed to start circle:", err);
+      logger.error("[useStartCircle] Failed to start circle:", err);
       addToast({
         type: "error",
         title: "Failed to start circle",
         description: extractErrorMessage(err, "Could not start circle. Please try again."),
+        requestId: (err as any).requestId,
       });
     },
   });
@@ -153,11 +177,12 @@ export function useCreateCircle() {
       queryClient.invalidateQueries({ queryKey: queryKeys.circles.all });
     },
     onError: (err) => {
-      console.error("[useCreateCircle] Failed to create circle:", err);
+      logger.error("[useCreateCircle] Failed to create circle:", err);
       addToast({
         type: "error",
         title: "Failed to create circle",
         description: extractErrorMessage(err, "Could not create circle. Please try again."),
+        requestId: (err as any).requestId,
       });
     },
   });
@@ -178,13 +203,15 @@ export function useJoinCircle() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.circles.detail(variables.circleId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.circles.members(variables.circleId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.circles.all });
     },
     onError: (err) => {
-      console.error("[useJoinCircle] Failed to join circle:", err);
+      logger.error("[useJoinCircle] Failed to join circle:", err);
       addToast({
         type: "error",
         title: "Failed to join circle",
         description: extractErrorMessage(err, "Could not join circle. Please try again."),
+        requestId: (err as any).requestId,
       });
     },
   });
@@ -240,11 +267,12 @@ export function useContribute(circleId: string) {
       });
     },
     onError: (err) => {
-      console.error("[useContribute] Failed to contribute:", err);
+      logger.error("[useContribute] Failed to contribute:", err);
       addToast({
         type: "error",
         title: "Contribution failed",
         description: extractErrorMessage(err, "Could not record contribution. Please try again."),
+        requestId: (err as any).requestId,
       });
     },
   });

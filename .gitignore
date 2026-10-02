@@ -13,8 +13,16 @@
 /.next/
 /out/
 
+# two-phase upload staging (dev-only, never committed)
+/.upload-staging/
+
 # production
 /build
+
+# storybook / visual regression
+/storybook-static
+/test-results
+/playwright-report
 
 # misc
 .DS_Store

@@ -1,10 +1,4 @@
-import type { WalletAdapter, WalletSession, EncryptedSessionStore, WalletId } from "./types"
-import { computeHmacSha256Sync } from "./hmac"
-import { SESSION_TTL_MS } from "./session-lifecycle"
-
-const STORAGE_KEY = "moistello_wallet_sessions"
-const SESSION_TTL = SESSION_TTL_MS
-const CHANNEL_NAME = "moistello-wallet"
+import { logger } from "@/lib/logger"
 import type {
   WalletAdapter,
   WalletSession,
@@ -16,9 +10,10 @@ import {
   encryptToStorage,
   decryptFromStorage,
 } from "@/lib/security/encryption";
+import { SESSION_TTL_MS } from "./session-lifecycle";
 
 const STORAGE_KEY = "moistello_wallet_sessions";
-const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
+const SESSION_TTL = SESSION_TTL_MS;
 const CHANNEL_NAME = "moistello-wallet";
 
 export class WalletSessionManager {
@@ -124,7 +119,7 @@ export class WalletSessionManager {
         // This rotates automatically on wallet switch/reconnect
         const passphrase = this.getEncryptionPassphrase()
         encryptToStorage(STORAGE_KEY, store, passphrase).catch((e) => {
-          console.warn(
+          logger.warn(
             "[SessionManager] Encryption failed, falling back to plaintext:",
             e,
           )
@@ -132,10 +127,10 @@ export class WalletSessionManager {
         })
       } catch (e) {
         if (e instanceof DOMException && e.name === "QuotaExceededError") {
-          console.warn("[SessionManager] localStorage full — sessions not persisted")
+          logger.warn("[SessionManager] localStorage full — sessions not persisted")
           return
         }
-        console.warn("[SessionManager] Failed to persist sessions:", e)
+        logger.warn("[SessionManager] Failed to persist sessions:", e)
       }
     })
   }
@@ -176,7 +171,7 @@ export class WalletSessionManager {
         JSON.stringify(store.sessions),
       );
       if (store.hmac !== expectedHMAC) {
-        console.warn(
+        logger.warn(
           "[SessionManager] HMAC mismatch — session store may be tampered",
         );
         localStorage.removeItem(STORAGE_KEY);
@@ -189,7 +184,7 @@ export class WalletSessionManager {
       );
       this.activeWalletId = store.activeWalletId;
     } catch (e) {
-      console.warn(
+      logger.warn(
         "[session-manager] Failed to restore sessions from storage:",
         e,
       );
@@ -212,7 +207,7 @@ export class WalletSessionManager {
       case "wallet_disconnected":
       case "active_switched":
         this.restore().catch((e) =>
-          console.warn(
+          logger.warn(
             "[session-manager] Failed to restore after broadcast:",
             e,
           ),
@@ -225,7 +220,7 @@ export class WalletSessionManager {
     window.addEventListener("storage", (event) => {
       if (event.key === STORAGE_KEY) {
         this.restore().catch((e) =>
-          console.warn(
+          logger.warn(
             "[session-manager] Failed to restore after storage event:",
             e,
           ),
@@ -241,12 +236,11 @@ export class WalletSessionManager {
    * Key rotates on wallet switch or re-auth, limiting exposure window.
    */
   private getEncryptionPassphrase(): string {
-    const walletSeed = this.activeWalletId || "default-wallet";
     const deviceSeed =
       typeof window !== "undefined"
         ? `${window.navigator.userAgent}-${window.screen.width}x${window.screen.height}`
         : "ssr-fallback";
-    return `${walletSeed}:${deviceSeed}:moistello-wallet-v1`;
+    return `${deviceSeed}:moistello-wallet-v1`;
   }
 
   destroy(): void {

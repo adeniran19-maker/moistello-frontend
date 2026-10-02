@@ -2,26 +2,27 @@
 
 import { memo, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
-  Home,
+  House,
   PiggyBank,
   CircleDot,
-  ArrowUpCircle,
-  ArrowDownCircle,
+  CircleArrowUp,
+  CircleArrowDown,
   Award,
   Bell,
   Settings,
   Wallet,
   LogOut,
-  Sun,
+  X,
   BookOpen,
-  HelpCircle,
+  CircleQuestionMark,
   LifeBuoy,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/cn";
 import { Routes } from "@/lib/constants";
-import { useUIStore } from "@/stores/ui-store";
+import { isRouteActive } from "@/lib/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { useUnreadCount } from "@/hooks/use-notifications";
 import { useTranslate } from "@/lib/locale/context";
@@ -34,22 +35,18 @@ interface MobileMenuProps {
 
 function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const theme = useUIStore((s) => s.theme);
-  const toggleTheme = useUIStore((s) => s.toggleTheme);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
   const unreadCount = useUnreadCount();
-  const isDark = theme === "dark";
   const { t } = useTranslate();
   const menuRef = useFocusTrap<HTMLDivElement>(isOpen, onClose);
 
   const navLinks = useMemo(() => [
-    { label: t("nav.dashboard"), href: Routes.DASHBOARD, icon: <Home className="h-4 w-4" /> },
+    { label: t("nav.dashboard"), href: Routes.DASHBOARD, icon: <House className="h-4 w-4" /> },
     { label: t("nav.savings"), href: Routes.SAVINGS, icon: <PiggyBank className="h-4 w-4" /> },
     { label: t("nav.circles"), href: Routes.CIRCLES, icon: <CircleDot className="h-4 w-4" /> },
-    { label: t("nav.contributions"), href: Routes.CONTRIBUTIONS, icon: <ArrowUpCircle className="h-4 w-4" /> },
-    { label: t("nav.payouts"), href: Routes.PAYOUTS, icon: <ArrowDownCircle className="h-4 w-4" /> },
+    { label: t("nav.contributions"), href: Routes.CONTRIBUTIONS, icon: <CircleArrowUp className="h-4 w-4" /> },
+    { label: t("nav.payouts"), href: Routes.PAYOUTS, icon: <CircleArrowDown className="h-4 w-4" /> },
     { label: t("nav.communities"), href: Routes.COMMUNITIES, icon: <Award className="h-4 w-4" /> },
   ], [t]);
 
@@ -61,14 +58,11 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
 
   const docsLinks = useMemo(() => [
     { label: t("nav.documentation"), href: Routes.DOCS, icon: <BookOpen className="h-4 w-4" /> },
-    { label: t("nav.faqs"), href: Routes.FAQ, icon: <HelpCircle className="h-4 w-4" /> },
+    { label: t("nav.faqs"), href: Routes.FAQ, icon: <CircleQuestionMark className="h-4 w-4" /> },
     { label: t("nav.support"), href: Routes.SUPPORT, icon: <LifeBuoy className="h-4 w-4" /> },
   ], [t]);
 
-  const isActive = (href: string) => {
-    if (href === Routes.DASHBOARD) return pathname === Routes.DASHBOARD;
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) => isRouteActive(pathname, href);
 
   const handleLogout = () => {
     logout();
@@ -80,26 +74,38 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
 
   return (
     <div className="fixed inset-0 z-[70]">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} aria-hidden="true" />
       <div
+        id="mobile-dashboard-menu"
         ref={menuRef}
         role="dialog"
         aria-modal="true"
         aria-label={t("nav.navigation")}
         tabIndex={-1}
         className={cn(
-          "absolute right-0 top-0 bottom-0 w-80 max-w-[85vw]",
+          // `pr-edge-safe` keeps the drawer glued to the right edge while its
+          // content clears the landscape notch / rounded corner. Zero-width on
+          // every device that has no right inset.
+          "absolute right-0 top-0 bottom-0 w-80 max-w-[85vw] pr-edge-safe",
           "glass-premium backdrop-blur-2xl",
           "border-l border-white/[0.08] dark:border-white/[0.06]",
           "flex flex-col",
         )}
         style={{ overscrollBehavior: "contain" }}
       >
-        <div className="flex h-16 items-center px-5 border-b border-white/[0.05]">
+        <div className="flex h-16 items-center justify-between px-5 border-b border-white/[0.05]">
           <span className="gradient-text-extended font-heading font-bold text-lg">Moistello</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation menu"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:glass-whisper"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-4 py-4">
+        <nav className="flex-1 overflow-y-auto px-4 py-4" aria-label="Mobile dashboard navigation">
           <div className="space-y-1 mb-6">
             <p className="px-3 text-[10px] font-heading tracking-[0.2em] uppercase text-muted-foreground/70 mb-2">
               {t("nav.navigation")}
@@ -110,6 +116,7 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
                 <Link
                   key={link.href}
                   href={link.href}
+                   aria-current={active ? "page" : undefined}
                   onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm",
@@ -135,6 +142,8 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={link.href === Routes.NOTIFICATIONS && unreadCount > 0 ? `${link.label} (${unreadCount} unread)` : undefined}
                   onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm",
@@ -145,7 +154,7 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
                 >
                   {link.icon}
                   <span className="flex-1">{link.label}</span>
-                  {link.label === "Notifications" && unreadCount > 0 && (
+                  {link.href === Routes.NOTIFICATIONS && unreadCount > 0 && (
                     <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white px-1.5">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
@@ -165,6 +174,7 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
                 <Link
                   key={link.href}
                   href={link.href}
+                   aria-current={active ? "page" : undefined}
                   onClick={onClose}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm",
@@ -182,16 +192,11 @@ function MobileMenuComponent({ isOpen, onClose }: MobileMenuProps) {
         </nav>
 
         <div className="shrink-0 border-t border-white/[0.05] px-4 py-4 space-y-2">
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:glass-whisper"
-          >
-            <Sun className="h-4 w-4" />
-            <span>{isDark ? t("common.darkMode") : t("common.lightMode")}</span>
-          </button>
+          <ThemeToggle showLabel className="w-full justify-start px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:glass-whisper" />
 
           {isAuthenticated && (
             <button
+              type="button"
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-red-400 hover:bg-red-500/10"
             >

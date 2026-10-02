@@ -1,6 +1,6 @@
 "use client"
 
-import { Loader2, Check } from "lucide-react"
+import { LoaderCircle, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/cn"
 import type { WalletOption } from "../types"
@@ -23,13 +23,15 @@ export function WalletStep({ wallets, selectedWallet, onSelect, onNext }: Props)
           </p>
           {wallets.length === 0 ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2" role="group" aria-label="Source wallet">
               {wallets.map((w) => (
                 <button
+                  type="button"
                   key={w.id}
+                  aria-pressed={selectedWallet === w.id}
                   onClick={() => onSelect(w.id, w.asset)}
                   className={cn(
                     "w-full flex items-center justify-between p-4 rounded-xl border transition-all",

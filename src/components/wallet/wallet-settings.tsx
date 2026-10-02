@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Trash2, AlertTriangle, Copy, CheckCircle, RefreshCw, Edit3, X } from "lucide-react"
+import { Trash2, TriangleAlert, Copy, CircleCheck, RefreshCw, Pencil, X } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { formatAddress } from "@/lib/formatters"
 import { Button } from "@/components/ui/button"
@@ -90,6 +90,7 @@ export function WalletSettings() {
                         {renamingId === id ? (
                           <div className="flex items-center gap-1">
                             <input
+                              aria-label="Wallet nickname"
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
                               className="bg-white/5 border border-white/10 rounded-lg px-2 py-0.5 text-sm w-32"
@@ -100,12 +101,14 @@ export function WalletSettings() {
                               }}
                             />
                             <button
+                              type="button"
+                              aria-label="Save wallet nickname"
                               onClick={() => saveAlias(id, renameValue)}
                               className="text-emerald-400"
                             >
-                              <CheckCircle className="h-3.5 w-3.5" />
+                              <CircleCheck className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => setRenamingId(null)} className="text-red-400">
+                            <button type="button" aria-label="Cancel editing wallet nickname" onClick={() => setRenamingId(null)} className="text-red-400">
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -113,24 +116,28 @@ export function WalletSettings() {
                           <>
                             <span className="font-heading text-sm">{getWalletName(id)}</span>
                             <button
+                              type="button"
+                              aria-label="Edit wallet nickname"
                               onClick={() => {
                                 setRenamingId(id)
                                 setRenameValue(getWalletName(id))
                               }}
                               className="text-muted-foreground hover:text-foreground transition-colors"
                             >
-                              <Edit3 className="h-3 w-3" />
+                              <Pencil className="h-3 w-3" />
                             </button>
                           </>
                         )}
                       </div>
                       <button
+                        type="button"
+                        aria-label={`Copy public key for ${getWalletName(id)}`}
                         onClick={() => copyKey(w.publicKey)}
                         className="text-xs text-muted-foreground font-mono hover:text-foreground transition-colors flex items-center gap-1"
                       >
                         {formatAddress(w.publicKey)}
                         {copiedKey === w.publicKey ? (
-                          <CheckCircle className="h-3 w-3 text-emerald-400" />
+                          <CircleCheck className="h-3 w-3 text-emerald-400" />
                         ) : (
                           <Copy className="h-3 w-3" />
                         )}
@@ -141,6 +148,8 @@ export function WalletSettings() {
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
                     <button
+                      type="button"
+                      aria-label={`Refresh balance for ${getWalletName(id)}`}
                       onClick={() => refreshBalance(id)}
                       className="glass-whisper rounded-lg p-2 hover:text-foreground transition-colors"
                       title="Refresh balance"
@@ -149,6 +158,7 @@ export function WalletSettings() {
                     </button>
                     {id !== activeWalletId && (
                       <button
+                        type="button"
                         onClick={() => switchWallet(id)}
                         className="glass-whisper rounded-lg px-3 py-1.5 text-xs hover:text-foreground transition-colors"
                       >
@@ -156,6 +166,8 @@ export function WalletSettings() {
                       </button>
                     )}
                     <button
+                      type="button"
+                      aria-label={`Disconnect ${getWalletName(id)}`}
                       onClick={() => disconnect(id)}
                       className="glass-whisper rounded-lg p-2 hover:text-red-400 transition-colors"
                       title="Disconnect"
@@ -216,7 +228,7 @@ export function WalletSettings() {
       {/* Danger Zone */}
       <div className="glass rounded-2xl p-6 border border-red-500/20">
         <div className="flex items-start gap-3 mb-4">
-          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+          <TriangleAlert className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
           <div>
             <h3 className="font-heading text-sm text-red-400">Danger Zone</h3>
             <p className="text-xs text-muted-foreground mt-1">

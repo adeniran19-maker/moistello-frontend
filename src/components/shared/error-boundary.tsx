@@ -1,8 +1,10 @@
 "use client";
 
+import { logger } from "@/lib/logger"
 import React, { Component } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { TriangleAlert, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
@@ -31,15 +33,12 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    logger.error("ErrorBoundary caught an error:", error, errorInfo);
   }
 
   handleRetry = () => {
     this.setState({ hasError: false, error: null });
     this.props.onRetry?.();
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
   };
 
   render() {
@@ -67,7 +66,7 @@ export class ErrorBoundary extends Component<
               transition={{ delay: 0.2, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
               className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-warning/10 ring-1 ring-warning/20"
             >
-              <AlertTriangle className="h-8 w-8 text-warning" aria-hidden="true" />
+              <TriangleAlert className="h-8 w-8 text-warning" aria-hidden="true" />
             </motion.div>
 
             {/* Title */}
@@ -82,15 +81,23 @@ export class ErrorBoundary extends Component<
             </p>
 
             {/* Retry button */}
-            <Button
-              variant="premium"
-              size="md"
-              leftIcon={<RefreshCw className="h-4 w-4" />}
-              onClick={this.handleRetry}
-              className="rounded-xl font-heading"
-            >
-              Try Again
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button
+                variant="premium"
+                size="md"
+                leftIcon={<RefreshCw className="h-4 w-4" />}
+                onClick={this.handleRetry}
+                className="rounded-xl font-heading"
+              >
+                Try Again
+              </Button>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-heading font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                Go to Dashboard
+              </Link>
+            </div>
           </motion.div>
         </div>
       );

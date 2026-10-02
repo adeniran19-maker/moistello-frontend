@@ -13,7 +13,7 @@ import {
   Link as LinkIcon,
   CircleDot,
   Trophy,
-  ArrowUpCircle,
+  CircleArrowUp,
   Globe,
   PiggyBank,
 } from "lucide-react"
@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { PageHeader } from "@/components/shared/page-header"
 import { cn } from "@/lib/cn"
 import { formatAddress, formatDate } from "@/lib/formatters"
+import { AvatarUploader } from "./components/AvatarUploader"
 
 const container = {
   hidden: { opacity: 0 },
@@ -165,16 +166,17 @@ export default function ProfilePage() {
           variants={item}
           className="glass-premium rounded-2xl p-6 flex flex-col items-center gap-4"
         >
-          <div className="flex h-24 w-24 items-center justify-center rounded-full gradient-bg text-white font-mono text-3xl font-bold shrink-0 shadow-lg">
-            {avatarInitial}
-          </div>
+          <AvatarUploader
+            initial={avatarInitial}
+            avatarUrl={(user as unknown as Record<string, string>)?.avatarUrl}
+          />
 
           {isEditing ? (
             <div className="w-full max-w-sm space-y-4">
               <div>
-                <label className="mb-1.5 block text-xs font-heading tracking-wider uppercase text-muted-foreground">
+                <p className="mb-1.5 block text-xs font-heading tracking-wider uppercase text-muted-foreground">
                   Display Name
-                </label>
+                </p>
                 <p className="font-heading text-xl font-semibold text-foreground text-center">{user.displayName || "Anonymous"}</p>
                 <p className="text-2xs text-muted-foreground text-center mt-1">Your unique anonymous name. Cannot be changed.</p>
               </div>
@@ -210,7 +212,7 @@ export default function ProfilePage() {
           {[
             { label: "Circles Joined", value: "0", icon: CircleDot },
             { label: "Circles Completed", value: "0", icon: Trophy },
-            { label: "Total Contributed", value: "$0", icon: ArrowUpCircle },
+            { label: "Total Contributed", value: "$0", icon: CircleArrowUp },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -267,6 +269,7 @@ export default function ProfilePage() {
 
           {isEditing ? (
             <textarea
+              aria-label="Profile bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder="Tell us about yourself..."

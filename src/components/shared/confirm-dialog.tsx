@@ -1,8 +1,9 @@
 "use client";
 
+import { logger } from "@/lib/logger"
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { TriangleAlert, LoaderCircle } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -40,7 +41,7 @@ export function ConfirmDialog({
       await onConfirm();
       onClose();
     } catch (e) {
-      console.error("[confirm-dialog] Action failed:", e)
+      logger.error("[confirm-dialog] Action failed:", e)
     } finally {
       setInternalLoading(false);
     }
@@ -50,8 +51,8 @@ export function ConfirmDialog({
     <Modal
       isOpen={isOpen}
       onClose={loading ? () => {} : onClose}
-      title=""
-      description=""
+      title={title}
+      description={message}
       size="sm"
       className={cn(
         variant === "danger" &&
@@ -63,38 +64,26 @@ export function ConfirmDialog({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       >
-        {/* Icon + Title */}
-        <div className="flex items-start gap-3 mb-3">
-          {variant === "danger" ? (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 ring-1 ring-destructive/15">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-            </div>
-          ) : null}
-          <div>
-            <h3 className="font-heading text-lg font-bold text-foreground">
-              {title}
-            </h3>
+        {variant === "danger" && (
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10 ring-1 ring-destructive/15">
+            <TriangleAlert className="h-5 w-5 text-destructive" aria-hidden="true" />
           </div>
-        </div>
+        )}
 
         {/* Warning for danger variant */}
         {variant === "danger" && (
           <div className="mb-3 flex items-center gap-2 rounded-xl bg-destructive/10 border border-destructive/15 p-3">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+            <TriangleAlert className="h-4 w-4 shrink-0 text-destructive" />
             <span className="text-sm text-destructive font-body">
               This action cannot be undone. Please proceed with caution.
             </span>
           </div>
         )}
 
-        {/* Message */}
-        <p className="text-sm text-muted-foreground font-body leading-relaxed">
-          {message}
-        </p>
-
         {/* Actions */}
         <div className="mt-6 flex items-center justify-end gap-3">
           <Button
+            type="button"
             variant="outline"
             size="md"
             onClick={onClose}
@@ -104,6 +93,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button
+            type="button"
             variant={variant === "danger" ? "destructive" : "primary"}
             size="md"
             onClick={handleConfirm}
@@ -114,7 +104,7 @@ export function ConfirmDialog({
                 "shadow-[0_0_28px_rgba(239,68,68,0.25)] gradient-bg",
             )}
           >
-            {loading && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            {loading && <LoaderCircle className="mr-1.5 h-4 w-4 animate-spin" />}
             {confirmLabel || (variant === "danger" ? "Delete" : "Confirm")}
           </Button>
         </div>
